@@ -14,10 +14,8 @@ runs/
 *.onnx
 weights/
 train3/
+Data/
 
-# DVC
-.dvc/cache/
-*.dvc
 
 # Datasets and large files
 data/
@@ -29,3 +27,4 @@ data/
 # Misc
 .DS_Store
 *.log
+/Data
