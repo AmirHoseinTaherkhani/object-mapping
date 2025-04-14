@@ -1,0 +1,31 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+*.ipynb
+
+# YOLOv8
+runs/
+*.pt
+*.onnx
+weights/
+train3/
+
+# DVC
+.dvc/cache/
+*.dvc
+
+# Datasets and large files
+data/
+*.zip
+*.tar
+*.gz
+*.yaml
+
+# Misc
+.DS_Store
+*.log
