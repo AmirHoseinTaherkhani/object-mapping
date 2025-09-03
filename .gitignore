@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -6,25 +7,19 @@ __pycache__/
 env/
 venv/
 .env
-*.ipynb
 
-# YOLOv8
+# YOLOv8 runs
 runs/
-*.pt
-*.onnx
-weights/
-train3/
-Data/
 
+# Large files (but allow .dvc files)
+/Data
+/weights
+/train3
 
-# Datasets and large files
-data/
-*.zip
-*.tar
-*.gz
-*.yaml
+# DVC - always allow these
+!*.dvc
+!.dvc/
 
 # Misc
 .DS_Store
 *.log
-/Data
