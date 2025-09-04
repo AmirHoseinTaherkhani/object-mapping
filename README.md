@@ -290,10 +290,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: your.email@example.com
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/ObjectMapping/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/ObjectMapping/discussions)
-
+- 📧 Email: a.h.taherkhani@gmail.com.com
 ---
 
 **Made with ❤️ for the computer vision community**
