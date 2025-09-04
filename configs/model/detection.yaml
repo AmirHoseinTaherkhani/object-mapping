@@ -1,0 +1,8 @@
+model:
+  weights: "models/weights/yolov8n.pt"
+  confidence_threshold: 0.5
+  device: "cpu"  # Changed from "auto" to "cpu"
+
+output:
+  save_predictions: true
+  output_dir: "outputs/predictions"
