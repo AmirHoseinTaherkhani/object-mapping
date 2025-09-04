@@ -1,0 +1,16 @@
+# Streamlit UI Configuration
+ui:
+  title: "Object Detection Ground Truth Annotator"
+  theme: "light"
+  port: 8501
+  
+point_selection:
+  min_points: 4  # Minimum points required for homography
+  max_points: 10 # Maximum points for annotation
+  point_color: "#FF0000"
+  point_radius: 5
+
+output:
+  ground_truth_dir: "outputs/ground_truth"
+  file_format: "json"
+  auto_save: true

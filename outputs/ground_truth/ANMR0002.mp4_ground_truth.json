@@ -1,0 +1,46 @@
+{
+  "video_name": "ANMR0002.mp4",
+  "frame_number": 0,
+  "image_points": [
+    [
+      231.5,
+      158
+    ],
+    [
+      215.5,
+      277
+    ],
+    [
+      43.5,
+      189
+    ],
+    [
+      80.5,
+      348
+    ]
+  ],
+  "world_points": [
+    {
+      "x": 0.0,
+      "y": 0.0,
+      "description": ""
+    },
+    {
+      "x": 0.0,
+      "y": 12.0,
+      "description": ""
+    },
+    {
+      "x": 14.0,
+      "y": 6.0,
+      "description": ""
+    },
+    {
+      "x": 6.0,
+      "y": 18.0,
+      "description": ""
+    }
+  ],
+  "timestamp": "2025-09-04 13:11:45.959181",
+  "total_points": 4
+}
