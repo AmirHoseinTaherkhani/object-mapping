@@ -290,7 +290,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 Email: a.h.taherkhani@gmail.com.com
+- 📧 Email: a.h.taherkhani@gmail.com
 ---
 
 **Made with ❤️ for the computer vision community**
