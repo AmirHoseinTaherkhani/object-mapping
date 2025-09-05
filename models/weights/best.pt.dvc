@@ -1,0 +1,6 @@
+outs:
+- md5: 352b23b410cd82bbdd2f486269c95835
+  size: 22508441
+  isexec: true
+  hash: md5
+  path: best.pt

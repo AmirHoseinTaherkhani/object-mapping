@@ -1,0 +1,56 @@
+visualization:
+ # Canvas settings
+ canvas:
+   width: 800
+   height: 600
+   background_color: [50, 50, 50]  # RGB
+   
+ # World coordinate bounds (min_x, min_y, max_x, max_y)
+ world_bounds: [-10.0, -10.0, 10.0, 10.0]
+ 
+ # Grid settings
+ grid:
+   enabled: true
+   spacing: 2.0  # meters
+   color: [80, 80, 80]  # RGB
+   
+ # Trail settings
+ trails:
+   enabled: true
+   max_length: 50  # number of points
+   fade_effect: true
+   line_thickness: 2
+   
+ # Object visualization
+ objects:
+   circle_radius: 6
+   border_thickness: 2
+   border_color: [255, 255, 255]  # White border
+   show_track_id: true
+   font_scale: 0.5
+   font_color: [255, 255, 255]
+   
+ # Display settings
+ display:
+   window_names:
+     video: "Video Tracking"
+     map: "Real-time 2D Map"
+   refresh_rate: 30  # FPS
+   
+ # Performance settings
+ performance:
+   max_objects: 100
+   trail_cleanup_interval: 100  # frames
+   
+# Class-specific colors (optional override)
+class_colors:
+ person: [0, 255, 0]    # Green
+ car: [255, 0, 0]       # Red
+ bicycle: [0, 0, 255]   # Blue
+
+# Performance optimizations
+performance:
+  max_objects: 50
+  trail_cleanup_interval: 60
+  skip_frames: 1  # Process every frame, display every frame
+  async_processing: false  # Future enhancement
