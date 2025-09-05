@@ -1,128 +1,197 @@
+"""
+2D Map Canvas for Real-World Coordinate Visualization
+Dynamic bounds based on ground truth annotations
+"""
+
 import cv2
 import numpy as np
+import json
 from typing import Dict, List, Tuple, Optional
-import colorsys
 
 class MapCanvas:
-    """Real-time 2D map visualization for object tracking"""
+    """2D map visualization with dynamic world coordinate bounds"""
     
     def __init__(self, width: int = 800, height: int = 600, 
-                 world_bounds: Tuple[float, float, float, float] = (-10, -10, 10, 10),
+                 ground_truth_file: Optional[str] = None,
+                 buffer_meters: float = 10.0,
                  background_color: Tuple[int, int, int] = (50, 50, 50)):
-        """
-        Initialize map canvas
-        
-        Args:
-            width, height: Canvas dimensions in pixels
-            world_bounds: (min_x, min_y, max_x, max_y) in world coordinates
-            background_color: RGB background color
-        """
         self.width = width
         self.height = height
-        self.world_bounds = world_bounds  # (min_x, min_y, max_x, max_y)
         self.background_color = background_color
+        self.buffer_meters = buffer_meters
         
-        # Create canvas
-        self.canvas = np.full((height, width, 3), background_color, dtype=np.uint8)
-        self.trails = {}  # track_id -> list of (x, y) positions
-        self.track_colors = {}  # track_id -> color
+        # Calculate world bounds from ground truth
+        if ground_truth_file:
+            self.world_bounds = self._calculate_bounds_from_gt(ground_truth_file)
+        else:
+            # Default fallback bounds
+            self.world_bounds = (-10.0, -10.0, 10.0, 10.0)
         
-        # Calculate scale factors
-        self.scale_x = width / (world_bounds[2] - world_bounds[0])
-        self.scale_y = height / (world_bounds[3] - world_bounds[1])
+        self.objects = {}
+        self.trails = {}
         
+        print(f"Map bounds: X({self.world_bounds[0]:.1f}, {self.world_bounds[2]:.1f}) Y({self.world_bounds[1]:.1f}, {self.world_bounds[3]:.1f})")
+    
+    def _calculate_bounds_from_gt(self, gt_file: str) -> Tuple[float, float, float, float]:
+        """Calculate world bounds from ground truth file with buffer"""
+        try:
+            with open(gt_file, 'r') as f:
+                data = json.load(f)
+            
+            world_points = data['world_points']
+            x_coords = [p['x'] for p in world_points]
+            y_coords = [p['y'] for p in world_points]
+            
+            x_min, x_max = min(x_coords), max(x_coords)
+            y_min, y_max = min(y_coords), max(y_coords)
+            
+            # Add buffer
+            return (
+                x_min - self.buffer_meters,  # x_min
+                y_min - self.buffer_meters,  # y_min  
+                x_max + self.buffer_meters,  # x_max
+                y_max + self.buffer_meters   # y_max
+            )
+        except Exception as e:
+            print(f"Warning: Could not calculate bounds from {gt_file}: {e}")
+            return (-10.0, -10.0, 10.0, 10.0)
+    
     def world_to_pixel(self, world_x: float, world_y: float) -> Tuple[int, int]:
         """Convert world coordinates to pixel coordinates"""
-        pixel_x = int((world_x - self.world_bounds[0]) * self.scale_x)
-        pixel_y = int(self.height - (world_y - self.world_bounds[1]) * self.scale_y)  # Flip Y
+        x_min, y_min, x_max, y_max = self.world_bounds
+        
+        # Normalize to [0, 1]
+        norm_x = (world_x - x_min) / (x_max - x_min)
+        norm_y = (world_y - y_min) / (y_max - y_min)
+        
+        # Convert to pixel coordinates (flip Y axis)
+        pixel_x = int(norm_x * self.width)
+        pixel_y = int((1 - norm_y) * self.height)  # Flip Y
+        
         return pixel_x, pixel_y
     
-    def get_track_color(self, track_id: int) -> Tuple[int, int, int]:
-        """Generate consistent color for track ID"""
-        if track_id not in self.track_colors:
-            hue = (track_id * 0.618033988749895) % 1.0  # Golden ratio for good color distribution
-            rgb = colorsys.hsv_to_rgb(hue, 0.8, 0.9)
-            self.track_colors[track_id] = tuple(int(c * 255) for c in rgb)
-        return self.track_colors[track_id]
-    
     def update_object(self, track_id: int, world_x: float, world_y: float, 
-                     class_name: str = "", confidence: float = 0.0):
-        """Update object position on map"""
+                     class_name: str, confidence: float):
+        """Update object position and trail"""
         pixel_x, pixel_y = self.world_to_pixel(world_x, world_y)
         
-        # Check if point is within canvas bounds
-        if 0 <= pixel_x < self.width and 0 <= pixel_y < self.height:
-            # Add to trail
-            if track_id not in self.trails:
-                self.trails[track_id] = []
-            self.trails[track_id].append((pixel_x, pixel_y))
-            
-            # Limit trail length
-            if len(self.trails[track_id]) > 50:
-                self.trails[track_id].pop(0)
-    
-    def draw_grid(self, grid_spacing: float = 1.0):
-        """Draw coordinate grid on canvas"""
-        grid_color = (80, 80, 80)
+        self.objects[track_id] = {
+            'pixel_pos': (pixel_x, pixel_y),
+            'world_pos': (world_x, world_y),
+            'class_name': class_name,
+            'confidence': confidence
+        }
         
-        # Vertical lines
-        for x in np.arange(self.world_bounds[0], self.world_bounds[2], grid_spacing):
-            px, py1 = self.world_to_pixel(x, self.world_bounds[1])
-            px, py2 = self.world_to_pixel(x, self.world_bounds[3])
-            if 0 <= px < self.width:
-                cv2.line(self.canvas, (px, py1), (px, py2), grid_color, 1)
+        # Update trail
+        if track_id not in self.trails:
+            self.trails[track_id] = []
         
-        # Horizontal lines
-        for y in np.arange(self.world_bounds[1], self.world_bounds[3], grid_spacing):
-            px1, py = self.world_to_pixel(self.world_bounds[0], y)
-            px2, py = self.world_to_pixel(self.world_bounds[2], y)
-            if 0 <= py < self.height:
-                cv2.line(self.canvas, (px1, py), (px2, py), grid_color, 1)
+        self.trails[track_id].append((pixel_x, pixel_y))
+        
+        # Limit trail length
+        max_trail_length = 50
+        if len(self.trails[track_id]) > max_trail_length:
+            self.trails[track_id] = self.trails[track_id][-max_trail_length:]
     
     def render(self, show_trails: bool = True, show_grid: bool = True) -> np.ndarray:
-        """Render the complete map"""
-        # Reset canvas
-        self.canvas.fill(0)
-        self.canvas[:] = self.background_color
+        """Render the map with objects and trails"""
+        # Create blank canvas
+        canvas = np.full((self.height, self.width, 3), self.background_color, dtype=np.uint8)
         
         # Draw grid
         if show_grid:
-            self.draw_grid()
+            self._draw_grid(canvas)
         
-        # Draw trails and current positions
+        # Draw trails
+        if show_trails:
+            self._draw_trails(canvas)
+        
+        # Draw objects
+        self._draw_objects(canvas)
+        
+        # Draw coordinate labels
+        self._draw_coordinate_labels(canvas)
+        
+        return canvas
+    
+    def _draw_grid(self, canvas: np.ndarray):
+        """Draw coordinate grid"""
+        x_min, y_min, x_max, y_max = self.world_bounds
+        
+        # Grid spacing (every 5 meters)
+        grid_spacing = 5.0
+        
+        # Vertical lines
+        x = x_min
+        while x <= x_max:
+            if x % grid_spacing == 0:
+                pixel_x, _ = self.world_to_pixel(x, y_min)
+                cv2.line(canvas, (pixel_x, 0), (pixel_x, self.height), (80, 80, 80), 1)
+            x += grid_spacing
+        
+        # Horizontal lines  
+        y = y_min
+        while y <= y_max:
+            if y % grid_spacing == 0:
+                _, pixel_y = self.world_to_pixel(x_min, y)
+                cv2.line(canvas, (0, pixel_y), (self.width, pixel_y), (80, 80, 80), 1)
+            y += grid_spacing
+    
+    def _draw_trails(self, canvas: np.ndarray):
+        """Draw object movement trails with fade effect"""
         for track_id, trail in self.trails.items():
-            if not trail:
+            if len(trail) < 2:
                 continue
-                
-            color = self.get_track_color(track_id)
             
-            # Draw trail
-            if show_trails and len(trail) > 1:
-                for i in range(1, len(trail)):
-                    alpha = i / len(trail)  # Fade effect
-                    trail_color = tuple(int(c * alpha) for c in color)
-                    cv2.line(self.canvas, trail[i-1], trail[i], trail_color, 2)
-            
-            # Draw current position
-            if trail:
-                current_pos = trail[-1]
-                cv2.circle(self.canvas, current_pos, 6, color, -1)
-                cv2.circle(self.canvas, current_pos, 8, (255, 255, 255), 2)
+            for i in range(1, len(trail)):
+                # Fade effect: newer points are brighter
+                alpha = i / len(trail)
+                color = (int(100 * alpha), int(150 * alpha), int(255 * alpha))
                 
-                # Draw track ID
-                cv2.putText(self.canvas, str(track_id), 
-                          (current_pos[0] + 10, current_pos[1] - 10),
-                          cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                cv2.line(canvas, trail[i-1], trail[i], color, 2)
+    
+    def _draw_objects(self, canvas: np.ndarray):
+        """Draw current object positions"""
+        for track_id, obj in self.objects.items():
+            pixel_x, pixel_y = obj['pixel_pos']
+            class_name = obj['class_name']
+            
+            # Color based on class
+            color = (0, 255, 0) if class_name == 'person' else (255, 100, 0)
+            
+            # Draw circle
+            cv2.circle(canvas, (pixel_x, pixel_y), 6, color, -1)
+            cv2.circle(canvas, (pixel_x, pixel_y), 8, (255, 255, 255), 2)
+            
+            # Draw track ID
+            cv2.putText(canvas, str(track_id), (pixel_x + 10, pixel_y - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    
+    def _draw_coordinate_labels(self, canvas: np.ndarray):
+        """Draw coordinate system labels"""
+        x_min, y_min, x_max, y_max = self.world_bounds
         
-        return self.canvas.copy()
+        # Corner labels
+        cv2.putText(canvas, f"({x_min:.0f},{y_max:.0f})", (10, 20),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
+        cv2.putText(canvas, f"({x_max:.0f},{y_min:.0f})", (self.width-100, self.height-10),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
     
     def clear_trails(self):
-        """Clear all trails"""
+        """Clear all movement trails"""
         self.trails.clear()
     
-    def remove_track(self, track_id: int):
-        """Remove specific track"""
-        if track_id in self.trails:
-            del self.trails[track_id]
-        if track_id in self.track_colors:
-            del self.track_colors[track_id]
+    def get_track_color(self, track_id: int) -> Tuple[int, int, int]:
+        """Get consistent color for a track ID"""
+        # Generate consistent colors based on track ID
+        colors = [
+            (0, 255, 0),    # Green
+            (255, 100, 0),  # Orange  
+            (255, 0, 255),  # Magenta
+            (0, 255, 255),  # Cyan
+            (255, 255, 0),  # Yellow
+            (255, 0, 0),    # Red
+            (0, 0, 255),    # Blue
+            (128, 255, 0),  # Lime
+        ]
+        return colors[track_id % len(colors)]

@@ -1,0 +1,25 @@
+            # Process detections with world coordinates
+            for det in tracked_objects:
+                if det['confidence'] >= confidence:
+                    # Calculate center from bbox [x, y, width, height]
+                    x, y, w, h = det['bbox']
+                    center_x = x + w / 2
+                    center_y = y + h / 2
+                    
+                    # Transform to world coordinates
+                    world_x, world_y = homography_calc.transform_point(center_x, center_y)
+                    
+                    # Update map
+                    map_canvas.update_object(
+                        det['track_id'], world_x, world_y,
+                        det['class_name'], det['confidence']
+                    )
+                    
+                    # Annotate frame with correct bbox format
+                    x1, y1 = int(x), int(y)
+                    x2, y2 = int(x + w), int(y + h)
+                    color = map_canvas.get_track_color(det['track_id'])
+                    
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(frame, f"ID:{det['track_id']} {det['class_name']}", 
+                               (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)

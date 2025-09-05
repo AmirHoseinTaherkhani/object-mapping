@@ -1,0 +1,221 @@
+"""
+Real-time Mapping Page with Embedded Visualization
+Shows video and map streams directly in the webapp
+"""
+
+import streamlit as st
+import tempfile
+import cv2
+import numpy as np
+import threading
+import queue
+import time
+from pathlib import Path
+import json
+import sys
+import os
+
+# Add src to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+
+from object_detection.inference.predictor import ObjectDetector
+from object_detection.mapping.homography import HomographyCalculator
+from object_detection.tracking.simple_tracker import SimpleTracker
+from object_detection.visualization.map_canvas import MapCanvas
+
+def render_realtime_mapping_page():
+    st.header("Real-time Video-to-Map Tracking")
+    st.markdown("Process videos with live object tracking and coordinate mapping")
+    
+    # Create columns for layout
+    config_col, control_col = st.columns([1, 1])
+    
+    with config_col:
+        st.subheader("Input Configuration")
+        
+        # Video input
+        video_option = st.radio("Video Source", ["Upload File", "Camera"])
+        
+        if video_option == "Upload File":
+            uploaded_video = st.file_uploader(
+                "Upload video file",
+                type=['mp4', 'avi', 'mov', 'mkv'],
+                help="Upload video for real-time processing"
+            )
+            video_source = None
+            if uploaded_video:
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_file:
+                    tmp_file.write(uploaded_video.getvalue())
+                    video_source = tmp_file.name
+                st.success("Video uploaded successfully")
+        else:
+            camera_index = st.number_input("Camera Index", min_value=0, max_value=5, value=0)
+            video_source = camera_index
+        
+        # Ground truth file
+        gt_files = list(Path("outputs/ground_truth").glob("*.json")) if Path("outputs/ground_truth").exists() else []
+        
+        if gt_files:
+            gt_file_names = [f.name for f in gt_files]
+            selected_gt = st.selectbox("Ground Truth File", gt_file_names)
+            gt_path = f"outputs/ground_truth/{selected_gt}"
+            
+            # Show GT file preview
+            if st.checkbox("Preview Ground Truth"):
+                with open(gt_path, 'r') as f:
+                    gt_data = json.load(f)
+                st.json(gt_data)
+        else:
+            st.warning("No ground truth files found. Please create ground truth points first.")
+            gt_path = None
+    
+    with control_col:
+        st.subheader("Processing Parameters")
+        
+        # Model selection
+        model_files = list(Path("models/weights").glob("*.pt")) + list(Path("models/weights").glob("*.onnx"))
+        if model_files:
+            model_names = [f.name for f in model_files]
+            selected_model = st.selectbox("Model", model_names, index=0)
+            model_path = f"models/weights/{selected_model}"
+        else:
+            st.error("No model files found")
+            model_path = None
+        
+        # Parameters
+        confidence = st.slider("Confidence Threshold", 0.1, 1.0, 0.7, 0.1)
+        device = st.selectbox("Device", ["cpu", "mps", "cuda"], index=0)
+        max_frames = st.number_input("Max Frames to Process", min_value=10, max_value=1000, value=100)
+    
+    # Check if all requirements are met
+    can_process = all([
+        video_source is not None,
+        gt_path is not None,
+        model_path is not None,
+        Path(model_path).exists() if model_path else False
+    ])
+    
+    if not can_process:
+        missing = []
+        if video_source is None:
+            missing.append("Video source")
+        if gt_path is None:
+            missing.append("Ground truth file")
+        if model_path is None or not Path(model_path).exists():
+            missing.append("Model file")
+        
+        st.warning(f"Missing requirements: {', '.join(missing)}")
+        return
+    
+    # Processing controls
+    if st.button("Start Processing", disabled=not can_process):
+        process_video_embedded(video_source, gt_path, model_path, confidence, device, max_frames)
+
+def process_video_embedded(video_source, gt_path, model_path, confidence, device, max_frames):
+    """Process video with embedded visualization in Streamlit"""
+    
+    # Initialize components
+    detector = ObjectDetector(model_path=model_path)
+    detector.config.confidence_threshold = confidence
+    detector.config.device = device
+    
+    homography_calc = HomographyCalculator(gt_path)
+    homography_calc.calculate_homography()
+    
+    tracker = SimpleTracker(max_disappeared=60, iou_threshold=0.2)
+    
+    map_canvas = MapCanvas(
+        width=400, height=300,
+        ground_truth_file=gt_path,
+        buffer_meters=10.0
+    )
+    
+    # Create placeholders for video and map
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Video Tracking")
+        video_placeholder = st.empty()
+    
+    with col2:
+        st.subheader("2D Map")
+        map_placeholder = st.empty()
+    
+    # Progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    # Open video
+    cap = cv2.VideoCapture(video_source)
+    if not cap.isOpened():
+        st.error("Could not open video source")
+        return
+    
+    frame_count = 0
+    total_frames = min(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), max_frames)
+    
+    try:
+        while cap.isOpened() and frame_count < max_frames:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            # Run detection
+            results = detector.predict(frame, save_results=False)
+            detections = results[0]['detections'] if results else []
+            
+            # Update tracking
+            tracked_objects = tracker.update(detections)
+            
+            # Process detections with world coordinates
+            for det in tracked_objects:
+                if det['confidence'] >= confidence:
+                    # Convert xywh to xyxy format (YOLO format is center_x, center_y, width, height)
+                    x, y, w, h = det['bbox']
+                    x1, y1 = x - w/2, y - h/2
+                    x2, y2 = x + w/2, y + h/2
+                    center_x = x
+                    center_y = y2  # Use bottom of bbox for ground contact                    
+                    # Transform to world coordinates
+                    world_x, world_y = homography_calc.transform_point(center_x, center_y)
+                    
+                    # Update map
+                    map_canvas.update_object(
+                        det['track_id'], world_x, world_y,
+                        det['class_name'], det['confidence']
+                    )
+                    
+                    # Annotate frame with correct bbox format
+                    # x1, y1 already calculated above
+                    # x2, y2 already calculated above
+                    color = map_canvas.get_track_color(det['track_id'])
+                    
+                    cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                    cv2.putText(frame, f"ID:{det['track_id']} {det['class_name']}", 
+                               (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            
+            # Render map
+            map_image = map_canvas.render(show_trails=True, show_grid=True)
+            
+            # Convert BGR to RGB for Streamlit
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            map_rgb = cv2.cvtColor(map_image, cv2.COLOR_BGR2RGB)
+            
+            # Update displays
+            video_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
+            map_placeholder.image(map_rgb, channels="RGB", use_column_width=True)
+            
+            # Update progress
+            frame_count += 1
+            progress = frame_count / total_frames
+            progress_bar.progress(progress)
+            status_text.text(f"Frame {frame_count}/{total_frames} - Objects: {len(tracked_objects)}")
+            
+            # Small delay to control playback speed
+            time.sleep(0.03)
+    
+    except Exception as e:
+        st.error(f"Processing error: {str(e)}")
+    
+    finally:
+        cap.release()
+        st.success("Processing completed!")

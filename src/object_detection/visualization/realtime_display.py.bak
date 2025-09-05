@@ -1,0 +1,183 @@
+import cv2
+import yaml
+import numpy as np
+from typing import Dict, List, Tuple, Optional
+from pathlib import Path
+import logging
+import torch
+
+from .map_canvas import MapCanvas
+from ..mapping.homography import HomographyCalculator
+from ..tracking.simple_tracker import SimpleTracker
+from ..tracking.simple_tracker import SimpleTracker
+from ..inference.predictor import ObjectDetector
+
+class RealtimeDisplay:
+    """Coordinates side-by-side video tracking and 2D map visualization"""
+    
+    def __init__(self, config_path: str = "configs/visualization/realtime.yaml"):
+        """Initialize realtime display system"""
+        self.config = self._load_config(config_path)
+        
+        # Store ground truth file path for later use
+        self.ground_truth_file = None
+        
+        # Initialize map canvas (will be recreated with proper bounds when GT file is provided)
+        canvas_config = self.config["visualization"]["canvas"]
+        
+        self.map_canvas = MapCanvas(
+            width=canvas_config["width"],
+            height=canvas_config["height"],
+            ground_truth_file=None,  # Will be updated later
+            buffer_meters=10.0,
+            background_color=tuple(canvas_config["background_color"])
+        )
+        
+        # Display settings
+        display_config = self.config["visualization"]["display"]
+        self.video_window = display_config["window_names"]["video"]
+        self.map_window = display_config["window_names"]["map"]
+        
+        # Performance tracking
+        self.frame_count = 0
+        self.cleanup_interval = self.config["visualization"]["performance"]["trail_cleanup_interval"]
+        
+        # Setup logging
+        self.logger = logging.getLogger(__name__)        # Initialize object tracker
+        self.tracker = SimpleTracker(
+            max_disappeared=60,  # Keep tracks for 30 frames without detection
+            iou_threshold=0.2    # Minimum IoU for track association
+        )
+        
+    def _load_config(self, config_path: str) -> Dict:
+        """Load visualization configuration"""
+        with open(config_path, 'r') as f:
+            return yaml.safe_load(f)
+    
+    def setup_windows(self):
+        """Initialize OpenCV display windows"""
+        cv2.namedWindow(self.video_window, cv2.WINDOW_NORMAL)
+        cv2.namedWindow(self.map_window, cv2.WINDOW_NORMAL)
+        
+        # Position windows side by side
+        cv2.moveWindow(self.video_window, 100, 100)
+        cv2.moveWindow(self.map_window, 800, 100)
+        
+        self.logger.info(f"Display windows initialized: {self.video_window}, {self.map_window}")
+    
+    def process_video_realtime(self, model_path: str, homography_file: str, 
+                              confidence_threshold: float, video_source: str, device: str = "cpu", 
+                              show_fps: bool = True) -> bool:
+        """Process video with real-time side-by-side display"""
+        # Setup display windows
+        self.setup_windows()
+        
+        # Initialize components
+        detector = ObjectDetector(model_path=model_path)
+        detector.config.confidence_threshold = confidence_threshold
+        detector.config.device = device
+        # Validate and optimize device selection
+        if "mps" in str(detector.config.device) and not torch.backends.mps.is_available():
+            self.logger.warning("MPS not available, falling back to CPU")
+            detector.config.device = device
+        elif "mps" in str(detector.config.device):
+            self.logger.info("Using MPS (Apple Silicon GPU) acceleration")
+        # Force CPU usage
+        homography_calc = HomographyCalculator(homography_file)
+        
+        # Recreate map canvas with dynamic bounds from ground truth file
+        canvas_config = self.config["visualization"]["canvas"]
+        self.map_canvas = MapCanvas(
+            width=canvas_config["width"],
+            height=canvas_config["height"],
+            ground_truth_file=homography_file,
+            buffer_meters=10.0,
+            background_color=tuple(canvas_config["background_color"])
+        )        homography_calc.calculate_homography()
+        
+        # Open video source
+        cap = cv2.VideoCapture(video_source)
+        if not cap.isOpened():
+            self.logger.error(f"Failed to open video source: {video_source}")
+            return False
+        
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        frame_delay = int(1000 / fps)
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Get detections
+                results = detector.predict(frame)
+                detections = self._extract_detections(results, detector.model.names)
+                
+                # Update displays
+                self._update_displays(frame, detections, homography_calc)
+                
+                # Check for exit
+                key = cv2.waitKey(frame_delay) & 0xFF
+                if key == ord('q') or key == 27:
+                    break
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
+        
+        return True
+    
+    def _extract_detections(self, results, class_names):
+        """Extract detection data from ObjectDetector results"""
+        detections = []
+        
+        # Handle the nested format returned by ObjectDetector.predict
+        if results and isinstance(results, list):
+            for result_dict in results:
+                if isinstance(result_dict, dict) and 'detections' in result_dict:
+                    for i, detection in enumerate(result_dict['detections']):
+                        # Convert xywh to xyxy format
+                        x, y, w, h = detection['bbox']
+                        x1, y1 = x - w/2, y - h/2
+                        x2, y2 = x + w/2, y + h/2
+                        
+                        detections.append({
+                            'track_id': i,  # Temporary ID for tracker
+                            'bbox': [x1, y1, x2, y2],
+                            'pixel_x': x,
+                            'pixel_y': y2,  # Bottom of bbox for ground contact
+                            'class_name': detection['class_name'],
+                            'confidence': detection['confidence']
+                        })
+        
+        return detections
+    
+    def _update_displays(self, frame, detections, homography_calc):
+        """Update both video and map displays"""
+        # Update map with detections
+        for det in detections:
+            world_x, world_y = homography_calc.transform_point(det['pixel_x'], det['pixel_y'])
+            self.map_canvas.update_object(det['track_id'], world_x, world_y, det['class_name'], det['confidence'])
+        
+        # Render displays
+        annotated_frame = self._annotate_frame(frame, detections)
+        map_frame = self.map_canvas.render()
+        
+        cv2.imshow(self.video_window, annotated_frame)
+        cv2.imshow(self.map_window, map_frame)
+        self.frame_count += 1
+    
+    def _annotate_frame(self, frame, detections):
+        """Add annotations to video frame"""
+        annotated = frame.copy()
+        for det in detections:
+            x1, y1, x2, y2 = det['bbox']
+            color = self.map_canvas.get_track_color(det['track_id'])
+            cv2.rectangle(annotated, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+            label = f"ID:{det['track_id']} {det['class_name']} {det['confidence']:.2f}"
+            cv2.putText(annotated, label, (int(x1), int(y1)-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        return annotated
+    
+    def close(self):
+        """Clean up resources"""
+        cv2.destroyAllWindows()
