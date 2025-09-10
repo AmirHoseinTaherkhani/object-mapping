@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  video-to-map:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount directories for data persistence
+      - ./outputs:/app/outputs
+      - ./models:/app/models
+      # Optional: mount for development (comment out for production)
+      - ./src:/app/src
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+    restart: unless-stopped
+    # For GPU support (uncomment when deploying on GPU-enabled host)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Optional: FastAPI service (if you want to run API separately)
+  # api:
+  #   build: .
+  #   ports:
+  #     - "8000:8000"
+  #   command: ["uvicorn", "src.object_detection.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+  #   volumes:
+  #     - ./models:/app/models

@@ -19,29 +19,31 @@ class RealtimeDisplay:
         """Initialize realtime display system"""
         self.config = self._load_config(config_path)
         
-        # Initialize map canvas
-        canvas_config = self.config['visualization']['canvas']
-        world_bounds = tuple(self.config['visualization']['world_bounds'])
+        # Store ground truth file path for later use
+        self.ground_truth_file = None
+        
+        # Initialize map canvas (will be recreated with proper bounds when GT file is provided)
+        canvas_config = self.config["visualization"]["canvas"]
         
         self.map_canvas = MapCanvas(
-            width=canvas_config['width'],
-            height=canvas_config['height'],
-            world_bounds=world_bounds,
-            background_color=tuple(canvas_config['background_color'])
+            width=canvas_config["width"],
+            height=canvas_config["height"],
+            ground_truth_file=None,  # Will be updated later
+            buffer_meters=10.0,
+            background_color=tuple(canvas_config["background_color"])
         )
         
         # Display settings
-        display_config = self.config['visualization']['display']
-        self.video_window = display_config['window_names']['video']
-        self.map_window = display_config['window_names']['map']
+        display_config = self.config["visualization"]["display"]
+        self.video_window = display_config["window_names"]["video"]
+        self.map_window = display_config["window_names"]["map"]
         
         # Performance tracking
         self.frame_count = 0
-        self.cleanup_interval = self.config['visualization']['performance']['trail_cleanup_interval']
+        self.cleanup_interval = self.config["visualization"]["performance"]["trail_cleanup_interval"]
         
         # Setup logging
-        self.logger = logging.getLogger(__name__)        
-        # Initialize object tracker
+        self.logger = logging.getLogger(__name__)        # Initialize object tracker
         self.tracker = SimpleTracker(
             max_disappeared=60,  # Keep tracks for 30 frames without detection
             iou_threshold=0.2    # Minimum IoU for track association
@@ -81,6 +83,18 @@ class RealtimeDisplay:
         elif "mps" in str(detector.config.device):
             self.logger.info("Using MPS (Apple Silicon GPU) acceleration")
         # Force CPU usage
+        homography_calc = HomographyCalculator(homography_file)
+        
+        # Recreate map canvas with dynamic bounds from ground truth file
+        canvas_config = self.config["visualization"]["canvas"]
+        self.map_canvas = MapCanvas(
+            width=canvas_config["width"],
+            height=canvas_config["height"],
+            ground_truth_file=homography_file,
+            buffer_meters=10.0,
+            background_color=tuple(canvas_config["background_color"])
+        )
+        
         homography_calc = HomographyCalculator(homography_file)
         homography_calc.calculate_homography()
         
