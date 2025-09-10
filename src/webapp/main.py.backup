@@ -15,7 +15,7 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Simple title - NO custom styling
+    # Simple title without custom styling
     st.title("Video-to-Map Object Tracking System")
     st.write("Real-time surveillance footage analysis with coordinate mapping")
     
@@ -41,11 +41,11 @@ def show_home_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("🎯 Ground Truth Annotation")
+        st.subheader("Ground Truth Annotation")
         st.write("Create reference points for perspective transformation. Upload surveillance video, select frame landmarks, input real-world coordinates, and export JSON for homography calculation.")
         
     with col2:
-        st.subheader("🗺️ Real-time Mapping")
+        st.subheader("Real-time Mapping")
         st.write("Live video processing with coordinate mapping. Includes object detection and tracking, real-world coordinate transformation, side-by-side visualization, and CSV export with trajectories.")
     
     st.write("---")
@@ -70,15 +70,15 @@ def show_home_page():
     features_col1, features_col2, features_col3 = st.columns(3)
     
     with features_col1:
-        st.subheader("🔍 Detection & Tracking")
+        st.subheader("Detection & Tracking")
         st.write("YOLO-based object detection with persistent ID assignment, GPU acceleration (MPS/CUDA), and configurable confidence thresholds.")
     
     with features_col2:
-        st.subheader("📐 Coordinate Mapping")
+        st.subheader("Coordinate Mapping")
         st.write("Homography transformation with pixel-to-meter conversion, error validation, and real-time processing capabilities.")
     
     with features_col3:
-        st.subheader("📊 Visualization")
+        st.subheader("Visualization")
         st.write("Side-by-side display with object trails, fade effects, interactive map canvas, and built-in performance monitoring.")
 
 def show_ground_truth_page():
@@ -90,7 +90,7 @@ def show_realtime_mapping_page():
     render_realtime_mapping_page()
 
 def show_api_test_page():
-    st.subheader("🧪 API Testing Interface")
+    st.subheader("API Testing Interface")
     st.write("Test the FastAPI detection endpoint with custom images and parameters.")
     
     # Upload image for detection

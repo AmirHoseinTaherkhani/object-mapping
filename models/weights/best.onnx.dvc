@@ -1,6 +1,0 @@
-outs:
-- md5: 31e454fb2fb27b1ccb3ff48f02eadad3
-  size: 44720374
-  isexec: true
-  hash: md5
-  path: best.onnx

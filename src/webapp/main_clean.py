@@ -15,7 +15,7 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Simple title - NO custom styling
+    # NO STYLING IMPORTS OR CALLS AT ALL
     st.title("Video-to-Map Object Tracking System")
     st.write("Real-time surveillance footage analysis with coordinate mapping")
     
@@ -41,45 +41,26 @@ def show_home_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("🎯 Ground Truth Annotation")
-        st.write("Create reference points for perspective transformation. Upload surveillance video, select frame landmarks, input real-world coordinates, and export JSON for homography calculation.")
+        st.subheader("Ground Truth Annotation")
+        st.write("Create reference points for perspective transformation.")
         
     with col2:
-        st.subheader("🗺️ Real-time Mapping")
-        st.write("Live video processing with coordinate mapping. Includes object detection and tracking, real-world coordinate transformation, side-by-side visualization, and CSV export with trajectories.")
+        st.subheader("Real-time Mapping")  
+        st.write("Live video processing with coordinate mapping.")
     
     st.write("---")
     st.subheader("System Capabilities")
     
-    # Performance metrics
-    metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)
-    
-    with metrics_col1:
+    # Simple metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
         st.metric("GPU Speedup", "4x")
-    
-    with metrics_col2:
+    with col2:
         st.metric("Max FPS", "45+")
-    
-    with metrics_col3:
+    with col3:
         st.metric("Track Consistency", "94%")
-    
-    with metrics_col4:
+    with col4:
         st.metric("Total Latency", "<30ms")
-    
-    # Feature descriptions
-    features_col1, features_col2, features_col3 = st.columns(3)
-    
-    with features_col1:
-        st.subheader("🔍 Detection & Tracking")
-        st.write("YOLO-based object detection with persistent ID assignment, GPU acceleration (MPS/CUDA), and configurable confidence thresholds.")
-    
-    with features_col2:
-        st.subheader("📐 Coordinate Mapping")
-        st.write("Homography transformation with pixel-to-meter conversion, error validation, and real-time processing capabilities.")
-    
-    with features_col3:
-        st.subheader("📊 Visualization")
-        st.write("Side-by-side display with object trails, fade effects, interactive map canvas, and built-in performance monitoring.")
 
 def show_ground_truth_page():
     from pages.ground_truth import render_ground_truth_page
@@ -90,17 +71,16 @@ def show_realtime_mapping_page():
     render_realtime_mapping_page()
 
 def show_api_test_page():
-    st.subheader("🧪 API Testing Interface")
-    st.write("Test the FastAPI detection endpoint with custom images and parameters.")
+    st.subheader("API Testing Interface")
+    st.write("Test the FastAPI detection endpoint.")
     
-    # Upload image for detection
     uploaded_file = st.file_uploader("Upload an image", type=['jpg', 'jpeg', 'png'])
     
     if uploaded_file is not None:
         st.image(uploaded_file, caption="Uploaded Image", use_column_width=True)
         
         if st.button("Run Detection"):
-            st.info("API integration coming soon. For now, use the real-time mapping page.")
+            st.info("API integration coming soon.")
 
 if __name__ == "__main__":
     main()

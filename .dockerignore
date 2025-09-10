@@ -2,6 +2,7 @@
 .git
 .gitignore
 *.md
+README*
 
 # Python cache
 __pycache__
@@ -17,6 +18,7 @@ __pycache__
 venv/
 env/
 ENV/
+objectmapping/
 
 # IDE files
 .vscode/
@@ -33,16 +35,20 @@ experiments/
 *.mp4
 *.avi
 *.mov
+*.mkv
 .dvc/
 
-# Keep only essential model files
-models/weights/*.pt
-models/weights/*.onnx
-
-# Logs
+# Logs and temporary files
 *.log
 logs/
-
-# Temporary files
 tmp/
 temp/
+
+# Only include essential model files if they exist
+!models/weights/*.pt
+!models/weights/*.onnx
+
+# Exclude large datasets
+data/
+datasets/
+videos/

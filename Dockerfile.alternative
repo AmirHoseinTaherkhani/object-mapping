@@ -1,0 +1,38 @@
+# Use a pre-built container with OpenCV already working
+FROM continuumio/miniconda3:latest
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements_docker_conda.txt .
+
+# Install Python dependencies with conda
+RUN conda install -y opencv python=3.10 && \
+    pip install -r requirements_docker_conda.txt
+
+# Copy the entire project
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p outputs/ground_truth outputs/predictions outputs/mapping
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Command to run the webapp
+CMD ["python", "-m", "streamlit", "run", "src/webapp/main.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
