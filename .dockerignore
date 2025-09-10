@@ -1,0 +1,48 @@
+# Git and version control
+.git
+.gitignore
+*.md
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.coverage
+.pytest_cache
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large files that aren't needed in container
+experiments/
+*.mp4
+*.avi
+*.mov
+.dvc/
+
+# Keep only essential model files
+models/weights/*.pt
+models/weights/*.onnx
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
