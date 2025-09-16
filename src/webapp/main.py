@@ -28,8 +28,6 @@ def main():
     
     if page == "Home":
         show_home_page()
-    elif page == "Video Processing":
-        show_video_processing_page()
     elif page == "Ground Truth Annotation":
         show_ground_truth_page()
     elif page == "Real-time Mapping":
@@ -90,10 +88,6 @@ def show_ground_truth_page():
 def show_realtime_mapping_page():
     from pages.realtime_mapping import render_realtime_mapping_page
     render_realtime_mapping_page()
-
-def show_video_processing_page():
-    from pages.video_processing import render_video_processing_page
-    render_video_processing_page()
 
 def show_api_test_page():
     st.subheader("🧪 API Testing Interface")

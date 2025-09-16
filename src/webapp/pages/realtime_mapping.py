@@ -20,12 +20,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
 
 from object_detection.inference.predictor import ObjectDetector
 from object_detection.mapping.homography import HomographyCalculator
-from object_detection.tracking.simple_tracker import SimpleTracker
+from object_detection.tracking.enhanced_tracker import EnhancedTracker as SimpleTracker
 from object_detection.visualization.map_canvas import MapCanvas
 
 def render_realtime_mapping_page():
     st.header("Real-time Video-to-Map Tracking")
     st.markdown("Process videos with live object tracking and coordinate mapping")
+    
+    # Get absolute paths relative to this file - CORRECTED
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent.parent  # pages -> webapp -> src -> object-mapping
     
     # Create columns for layout
     config_col, control_col = st.columns([1, 1])
@@ -52,13 +56,14 @@ def render_realtime_mapping_page():
             camera_index = st.number_input("Camera Index", min_value=0, max_value=5, value=0)
             video_source = camera_index
         
-        # Ground truth file
-        gt_files = list(Path("outputs/ground_truth").glob("*.json")) if Path("outputs/ground_truth").exists() else []
+        # Ground truth file - CORRECTED PATH
+        gt_root = project_root / "outputs" / "ground_truth"
+        gt_files = list(gt_root.glob("*.json")) if gt_root.exists() else []
         
         if gt_files:
             gt_file_names = [f.name for f in gt_files]
             selected_gt = st.selectbox("Ground Truth File", gt_file_names)
-            gt_path = f"outputs/ground_truth/{selected_gt}"
+            gt_path = str(gt_root / selected_gt)
             
             # Show GT file preview
             if st.checkbox("Preview Ground Truth"):
@@ -72,12 +77,16 @@ def render_realtime_mapping_page():
     with control_col:
         st.subheader("Processing Parameters")
         
-        # Model selection
-        model_files = list(Path("models/weights").glob("*.pt")) + list(Path("models/weights").glob("*.onnx"))
+        # Model selection - CORRECTED PATH
+        model_root = project_root / "models" / "weights"
+        model_files = []
+        if model_root.exists():
+            model_files = list(model_root.glob("*.pt")) + list(model_root.glob("*.onnx"))
+        
         if model_files:
             model_names = [f.name for f in model_files]
             selected_model = st.selectbox("Model", model_names, index=0)
-            model_path = f"models/weights/{selected_model}"
+            model_path = str(model_root / selected_model)
         else:
             st.error("No model files found")
             model_path = None
@@ -122,7 +131,7 @@ def process_video_embedded(video_source, gt_path, model_path, confidence, device
     homography_calc = HomographyCalculator(gt_path)
     homography_calc.calculate_homography()
     
-    tracker = SimpleTracker(max_disappeared=60, iou_threshold=0.2)
+    tracker = SimpleTracker(max_disappeared=30, iou_threshold=0.3, velocity_weight=0.4, min_hits_for_tracking=2)
     
     map_canvas = MapCanvas(
         width=400, height=300,

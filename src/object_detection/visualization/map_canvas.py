@@ -1,6 +1,6 @@
 """
 2D Map Canvas for Real-World Coordinate Visualization
-Dynamic bounds based on ground truth annotations
+Fixed grid drawing issue with horizontal lines
 """
 
 import cv2
@@ -115,7 +115,7 @@ class MapCanvas:
         return canvas
     
     def _draw_grid(self, canvas: np.ndarray):
-        """Draw coordinate grid with axis labels and tick marks"""
+        """Draw coordinate grid with axis labels and tick marks - FIXED"""
         x_min, y_min, x_max, y_max = self.world_bounds
         
         # Grid spacing (every 5 meters)
@@ -126,20 +126,20 @@ class MapCanvas:
         while x <= x_max:
             if x % grid_spacing == 0:
                 pixel_x, _ = self.world_to_pixel(x, y_min)
-                # Grid line
+                # Grid line - GRAY color
                 cv2.line(canvas, (pixel_x, 0), (pixel_x, self.height), (200, 200, 200), 1)
                 # X-axis label at bottom
                 cv2.putText(canvas, f"{int(x)}m", (pixel_x - 15, self.height - 5),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
             x += grid_spacing
         
-        # Draw horizontal grid lines with labels  
+        # Draw horizontal grid lines with labels - FIXED COLOR  
         y = y_min
         while y <= y_max:
             if y % grid_spacing == 0:
                 _, pixel_y = self.world_to_pixel(x_min, y)
-                # Grid line
-                cv2.line(canvas, (0, pixel_y), (self.width, pixel_y), (0, 0, 255), 3)
+                # Grid line - CHANGED FROM RED TO GRAY
+                cv2.line(canvas, (0, pixel_y), (self.width, pixel_y), (200, 200, 200), 1)
                 # Y-axis label at left
                 cv2.putText(canvas, f"{int(y)}m", (5, pixel_y + 5),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)

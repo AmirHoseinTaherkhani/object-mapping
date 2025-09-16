@@ -9,7 +9,7 @@ from video_processor import VideoProcessor
 
 def render_video_processing_page():
     st.header("📹 Video Processing & Optimization")
-    st.write("Optimize large videos for better tracking performance")
+    st.write("Optimize and crop videos for better tracking performance")
     
     # Upload video
     uploaded_file = st.file_uploader(
@@ -31,16 +31,47 @@ def render_video_processing_page():
         video_info = processor.get_video_info(temp_input.name)
         if video_info:
             st.subheader("Original Video Information")
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Resolution", f"{video_info['width']}x{video_info['height']}")
             with col2:
                 st.metric("FPS", f"{video_info['fps']:.1f}")
             with col3:
+                st.metric("Duration", f"{video_info['duration']:.1f}s")
+            with col4:
                 st.metric("File Size", f"{video_info['file_size']:.1f} MB")
             
+            # Time cropping section
+            st.subheader("⏱️ Time Cropping")
+            enable_crop = st.checkbox("Enable time-based cropping")
+            
+            start_time = 0
+            end_time = video_info['duration']
+            
+            if enable_crop:
+                col1, col2 = st.columns(2)
+                with col1:
+                    start_time = st.number_input(
+                        "Start time (seconds)", 
+                        min_value=0.0, 
+                        max_value=video_info['duration'], 
+                        value=0.0,
+                        step=0.1
+                    )
+                with col2:
+                    end_time = st.number_input(
+                        "End time (seconds)", 
+                        min_value=start_time, 
+                        max_value=video_info['duration'], 
+                        value=min(start_time + 30, video_info['duration']),
+                        step=0.1
+                    )
+                
+                crop_duration = end_time - start_time
+                st.info(f"Cropped duration: {crop_duration:.1f} seconds ({crop_duration/video_info['duration']*100:.1f}% of original)")
+            
             # Processing options
-            st.subheader("Processing Options")
+            st.subheader("📐 Quality Options")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -60,21 +91,30 @@ def render_video_processing_page():
                 temp_output = tempfile.NamedTemporaryFile(delete=False, suffix='_processed.mp4')
                 temp_output.close()
                 
-                success = processor.resize_video(
-                    temp_input.name, temp_output.name,
-                    target_width, target_height, quality, target_fps
-                )
+                if enable_crop:
+                    success = processor.crop_and_resize_video(
+                        temp_input.name, temp_output.name,
+                        target_width, target_height, quality, target_fps,
+                        start_time, end_time
+                    )
+                else:
+                    success = processor.resize_video(
+                        temp_input.name, temp_output.name,
+                        target_width, target_height, quality, target_fps
+                    )
                 
                 if success:
                     processed_info = processor.get_video_info(temp_output.name)
                     st.success("Video processed successfully!")
                     
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.metric("New Resolution", f"{processed_info['width']}x{processed_info['height']}")
                     with col2:
                         st.metric("New FPS", f"{processed_info['fps']:.1f}")
                     with col3:
+                        st.metric("New Duration", f"{processed_info['duration']:.1f}s")
+                    with col4:
                         st.metric("New Size", f"{processed_info['file_size']:.1f} MB")
                     
                     compression_ratio = (1 - processed_info['file_size'] / video_info['file_size']) * 100
