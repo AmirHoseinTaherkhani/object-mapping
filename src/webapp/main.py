@@ -32,6 +32,8 @@ def main():
         show_ground_truth_page()
     elif page == "Real-time Mapping":
         show_realtime_mapping_page()
+    elif page == "Video Processing":
+        show_video_processing_page()
     elif page == "API Test":
         show_api_test_page()
 
@@ -102,5 +104,10 @@ def show_api_test_page():
         if st.button("Run Detection"):
             st.info("API integration coming soon. For now, use the real-time mapping page.")
 
+def show_video_processing_page():
+    from pages.video_processing import render_video_processing_page
+    render_video_processing_page()
+
 if __name__ == "__main__":
     main()
+
