@@ -8,8 +8,30 @@ env/
 venv/
 .env
 
-# YOLOv8 runs
+# YOLOv8 runs and inference outputs
 runs/
+outputs/predictions/
+
+# Model weights (large binaries)
+models/weights/*.pt
+cloud_weights/
+
+# Training data and labeling (large, not for version control)
+labeling_data/
+datasets.zip
+
+# Demo videos and generated outputs
+Demo/
+outputs/*.mp4
+outputs/*.csv
+outputs/*.avi
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Notebooks
+notebooks/
 
 # Large files (but allow .dvc files)
 /Data
@@ -19,6 +41,9 @@ runs/
 # DVC - always allow these
 !*.dvc
 !.dvc/
+
+# Claude internal
+.claude/
 
 # Misc
 .DS_Store

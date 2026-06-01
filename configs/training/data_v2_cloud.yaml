@@ -1,0 +1,57 @@
+names:
+- person  # class 0
+- car     # class 1
+nc: 2
+
+train:
+  # --- CAR datasets ---
+  - /workspace/data/datasets/car/Car detection.v1i.yolov8/train/images
+  - /workspace/data/datasets/car/car detection.v1i_1.yolov8/train/images
+  - /workspace/data/datasets/car/car.v2i.yolov8/train/images
+  - /workspace/data/datasets/car/CarDetect.v1i.yolov8/train/images
+  - /workspace/data/datasets/car/Cars detecting and how many.v1i.yolov8/train/images
+  - /workspace/data/datasets/car/Vehicle counter.v2i.yolov8/train/images
+  - /workspace/data/datasets/car/WastM.v1i.yolov8/train/images
+  - /workspace/data/datasets/car/car.v1i.yolov8/train/images
+  # --- PERSON datasets ---
+  - /workspace/data/datasets/person/obstacles.v1i.yolov8/train/images
+  - /workspace/data/datasets/person/person detection.v1i.yolov8/train/images
+  - /workspace/data/datasets/person/person.v1i.yolov8/train/images
+  - /workspace/data/datasets/person/person.v1i_1.yolov8/train/images
+  - /workspace/data/datasets/person/person.v4i.yolov8/train/images
+  - /workspace/data/datasets/person/Person_Detection_noe.v2i.yolov8/train/images
+  - /workspace/data/datasets/person/Person dataset.v4i.yolov8/train/images
+  - /workspace/data/datasets/person/Person.v1i_2.yolov8/train/images
+  - /workspace/data/datasets/person/REAR COLLISION AVOIDANCE WARNING SYSTEM.v1i.yolov8/train/images
+  - /workspace/data/datasets/person/test.v1i.yolov8/train/images
+
+val:
+  - /workspace/data/datasets/car/Car detection.v1i.yolov8/valid/images
+  - /workspace/data/datasets/car/car detection.v1i_1.yolov8/valid/images
+  - /workspace/data/datasets/car/car.v2i.yolov8/valid/images
+  - /workspace/data/datasets/car/CarDetect.v1i.yolov8/valid/images
+  - /workspace/data/datasets/car/Cars detecting and how many.v1i.yolov8/valid/images
+  - /workspace/data/datasets/car/Vehicle counter.v2i.yolov8/valid/images
+  - /workspace/data/datasets/car/WastM.v1i.yolov8/valid/images
+  - /workspace/data/datasets/person/obstacles.v1i.yolov8/valid/images
+  - /workspace/data/datasets/person/person detection.v1i.yolov8/valid/images
+  - /workspace/data/datasets/person/person.v1i.yolov8/valid/images
+  - /workspace/data/datasets/person/person.v1i_1.yolov8/valid/images
+  - /workspace/data/datasets/person/person.v4i.yolov8/valid/images
+  - /workspace/data/datasets/person/Person_Detection_noe.v2i.yolov8/valid/images
+  - /workspace/data/datasets/person/Person.v1i_2.yolov8/valid/images
+
+test:
+  - /workspace/data/datasets/car/Car detection.v1i.yolov8/test/images
+  - /workspace/data/datasets/car/car detection.v1i_1.yolov8/test/images
+  - /workspace/data/datasets/car/car.v2i.yolov8/test/images
+  - /workspace/data/datasets/car/CarDetect.v1i.yolov8/test/images
+  - /workspace/data/datasets/car/Cars detecting and how many.v1i.yolov8/test/images
+  - /workspace/data/datasets/car/Vehicle counter.v2i.yolov8/test/images
+  - /workspace/data/datasets/car/WastM.v1i.yolov8/test/images
+  - /workspace/data/datasets/person/obstacles.v1i.yolov8/test/images
+  - /workspace/data/datasets/person/person detection.v1i.yolov8/test/images
+  - /workspace/data/datasets/person/person.v1i.yolov8/test/images
+  - /workspace/data/datasets/person/person.v1i_1.yolov8/test/images
+  - /workspace/data/datasets/person/person.v4i.yolov8/test/images
+  - /workspace/data/datasets/person/Person_Detection_noe.v2i.yolov8/test/images
