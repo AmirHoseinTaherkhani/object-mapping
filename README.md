@@ -1,296 +1,161 @@
-# Object Detection System
+# Object Mapping — Overhead Surveillance Tracking & Counting
+
+A computer vision pipeline for detecting, tracking, and counting vehicles and pedestrians in fixed overhead surveillance video, built on YOLOv8s fine-tuned for this camera domain.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A professional-grade object detection system built with YOLOv8, designed for production deployment with MLOps best practices.
+---
 
-## 🚀 Features
+## Overview
 
-- **State-of-the-art Detection**: YOLOv8-based object detection
-- **Production Ready**: Docker containers, API endpoints, monitoring
-- **MLOps Integration**: DVC for data versioning, automated CI/CD
-- **Scalable Architecture**: Modular design for easy extension
-- **Comprehensive Testing**: Unit and integration tests
-- **API First**: RESTful API for seamless integration
+| Component | Detail |
+|---|---|
+| Detector | YOLOv8s — 2 classes: `person` (0), `car` (1) |
+| Model weights | `models/weights/best_v3_merged.pt` |
+| Tracker | ByteTrack (BoxMOT) |
+| Training platform | UNH Premise HPC — NVIDIA A100 80 GB via SLURM |
+| Input video | 1920×1080 @ 60 fps overhead intersection camera |
 
-## 📋 Table of Contents
+---
 
-- [Quick Start](#quick-start)
-- [Installation](#installation)
-- [Usage](#usage)
-- [API Documentation](#api-documentation)
-- [Development](#development)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
+## Repository Structure
 
-## 🚀 Quick Start
+```
+├── counting_experiment/        # Vehicle & person counting pipeline
+│   ├── select_roi.py           # Interactive ROI polygon selector
+│   ├── count_objects.py        # Main counting script
+│   ├── check_counts.py         # Output verification replay
+│   └── README.md               # Detailed docs for the counting pipeline
+│
+├── src/object_detection/
+│   └── training/               # Training script variants
+│
+├── finetune_on_camera.py       # Fine-tuning entry point (Mac + HPC)
+├── prepare_dataset.py          # Merge & balance multi-source datasets
+├── merge_datasets.py           # Dataset builder with class remapping
+├── test_old_bytetrack.py       # ID-switch evaluation on a video clip
+├── threshold_grid_search.py    # Grid search over per-class conf thresholds
+│
+├── train_hpc.slurm             # SLURM job: fine-tuning on A100
+├── inference_hpc.slurm         # SLURM job: full-video inference
+└── grid_search_hpc.slurm       # SLURM job: threshold grid search
+```
 
-### Prerequisites
+---
 
-- Python 3.9+
-- Git with DVC
-- AWS CLI (for model storage)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/ObjectMapping.git
-   cd ObjectMapping
-   ```
-
-2. **Set up environment**
-   ```bash
-   conda create -n object-detection python=3.9
-   conda activate object-detection
-   pip install -r requirements/base.txt
-   ```
-
-3. **Download models**
-   ```bash
-   dvc pull
-   ```
-
-4. **Run inference**
-   ```bash
-   python src/scripts/predict.py --input path/to/image.jpg
-   ```
-
-## 🛠 Installation
-
-### Development Setup
+## Setup
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/ObjectMapping.git
-cd ObjectMapping
+conda create -n objectmapping python=3.9
+conda activate objectmapping
+pip install ultralytics boxmot opencv-python-headless numpy
+```
 
-# Create conda environment
-conda env create -f environment.yml
-conda activate object-detection
-
-# Install in development mode
-pip install -e .
-
-# Install development dependencies
-pip install -r requirements/dev.txt
-
-# Set up pre-commit hooks
-pre-commit install
-
-# Download models and data
+Pull model weights via DVC:
+```bash
 dvc pull
 ```
 
-### Production Setup
-
-```bash
-# Using Docker
-docker build -t object-detection .
-docker run -p 8000:8000 object-detection
-
-# Or using pip
-pip install -r requirements/prod.txt
-python src/api/main.py
-```
-
-## 📖 Usage
-
-### Command Line Interface
-
-#### Training
-```bash
-python src/scripts/train.py \
-    --data configs/training/default.yaml \
-    --model yolov8n \
-    --epochs 100
-```
-
-#### Inference
-```bash
-# Single image
-python src/scripts/predict.py --input image.jpg --output predictions/
-
-# Batch processing
-python src/scripts/predict.py --input images/ --output predictions/ --batch-size 16
-
-# Video processing
-python src/scripts/predict.py --input video.mp4 --output predictions/video_output.mp4
-```
-
-#### Evaluation
-```bash
-python src/scripts/evaluate.py \
-    --model models/weights/yolov8n.pt \
-    --data configs/data/test.yaml
-```
-
-### Python API
-
-```python
-from object_detection.inference import ObjectDetector
-
-# Initialize detector
-detector = ObjectDetector('models/weights/yolov8n.pt')
-
-# Detect objects
-results = detector.predict('path/to/image.jpg')
-
-# Process results
-for detection in results:
-    print(f"Class: {detection.class_name}, Confidence: {detection.confidence}")
-```
-
-### REST API
-
-Start the API server:
-```bash
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
-```
-
-Example request:
-```bash
-curl -X POST "http://localhost:8000/detect" \
-     -H "accept: application/json" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@image.jpg"
-```
-
-## 📚 API Documentation
-
-Once the API is running, visit:
-- **Interactive API docs**: http://localhost:8000/docs
-- **ReDoc documentation**: http://localhost:8000/redoc
-
-### Endpoints
-
-- `POST /detect` - Object detection on uploaded image
-- `POST /batch-detect` - Batch object detection
-- `GET /health` - Health check endpoint
-- `GET /metrics` - Performance metrics
-
-## 🔧 Development
-
-### Project Structure
-
-```
-src/
-├── object_detection/          # Main package
-│   ├── models/               # Model definitions
-│   ├── data/                 # Data handling
-│   ├── training/             # Training logic
-│   ├── inference/            # Inference pipeline
-│   ├── utils/                # Utilities
-│   └── api/                  # API endpoints
-├── scripts/                  # CLI scripts
-└── tests/                    # Test suite
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test file
-pytest tests/unit/test_models.py
-```
-
-### Code Quality
-
-```bash
-# Format code
-black src/ tests/
-
-# Lint code
-flake8 src/ tests/
-
-# Type checking
-mypy src/
-```
-
-### Adding New Models
-
-1. Create model class in `src/object_detection/models/`
-2. Add configuration in `configs/model/`
-3. Update training script
-4. Add tests
-
-## 🚀 Deployment
-
-### Docker Deployment
-
-```bash
-# Build image
-docker build -t object-detection .
-
-# Run container
-docker run -p 8000:8000 object-detection
-
-# Using docker-compose
-docker-compose up
-```
-
-### Kubernetes Deployment
-
-```bash
-# Deploy to Kubernetes
-kubectl apply -f deployment/kubernetes/
-
-# Check status
-kubectl get pods -l app=object-detection
-```
-
-### AWS Deployment
-
-```bash
-# Deploy using Terraform
-cd deployment/terraform
-terraform init
-terraform plan
-terraform apply
-```
-
-## 📊 Model Performance
-
-| Model | mAP@0.5 | Inference Time | Model Size |
-|-------|---------|----------------|------------|
-| YOLOv8n | 0.85 | 15ms | 6.2MB |
-| YOLOv8s | 0.89 | 25ms | 21.5MB |
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow PEP 8 style guide
-- Add tests for new features
-- Update documentation
-- Use conventional commit messages
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [Ultralytics](https://ultralytics.com/) for YOLOv8
-- [DVC](https://dvc.org/) for data version control
-- [FastAPI](https://fastapi.tiangolo.com/) for the API framework
-
-## 📞 Support
-
-- 📧 Email: a.h.taherkhani@gmail.com
 ---
 
-**Made with ❤️ for the computer vision community**
+## Counting Pipeline
+
+The main product of this project. Counts moving vehicles and pedestrians in a video with ROI masking, parked-car filtering, and ghost-zone deduplication.
+
+```bash
+cd counting_experiment
+
+# 1. Define the zone of interest (click polygon → Enter to save)
+python select_roi.py
+
+# 2. Run the counter
+python count_objects.py
+
+# 3. Verify output (optional)
+python check_counts.py
+```
+
+See [counting_experiment/README.md](counting_experiment/README.md) for full documentation, configuration options, and the engineering decisions behind each fix.
+
+---
+
+## Model Training
+
+### Fine-tuning (local Mac)
+
+```bash
+python finetune_on_camera.py
+```
+
+### Fine-tuning on UNH Premise HPC (A100)
+
+```bash
+# SSH into Premise, then:
+sbatch train_hpc.slurm
+squeue -u $USER        # monitor
+```
+
+### Dataset preparation
+
+```bash
+python prepare_dataset.py   # merge + remap + balance datasets
+```
+
+The training dataset merges 5 vehicle datasets and 2 pedestrian datasets with your labelled camera frames. Car:person ratio is balanced to ~2:1 before training.
+
+---
+
+## Evaluation
+
+### ID-switch test (30-second clip)
+
+```bash
+python test_old_bytetrack.py models/weights/best_v3_merged.pt
+```
+
+### Full-video inference
+
+```bash
+python test_old_bytetrack.py models/weights/best_v3_merged.pt --full \
+  --conf-car 0.50 --conf-person 0.45
+```
+
+### Threshold grid search (HPC)
+
+```bash
+sbatch grid_search_hpc.slurm
+# results → outputs/threshold_search.csv
+```
+
+---
+
+## Model Performance
+
+Fine-tuned on merged dataset (~14,000 images) — 50 epochs on A100:
+
+| Class | mAP@0.5 |
+|---|---|
+| Person | 0.985 |
+| Car | 0.619 |
+| **Overall** | **0.802** |
+
+Car mAP is limited by the overhead viewing angle (domain gap from street-level training data) rather than data quantity. Person detection is near-perfect.
+
+**Tracking stability** (30-second clip, `best_v3_merged.pt`):
+
+| Metric | Old model | Fine-tuned |
+|---|---|---|
+| ID switches | 30 | 3 |
+| Unique track IDs | 37 | 5 |
+| Detections/frame | 6.0 | 2.5 |
+
+The 3 remaining switches are genuine occlusion events (cars behind trees).
+
+---
+
+## Acknowledgements
+
+- [Ultralytics](https://github.com/ultralytics/ultralytics) — YOLOv8
+- [BoxMOT](https://github.com/mikel-brostrom/boxmot) — ByteTrack implementation
+- UNH Premise HPC — A100 compute
