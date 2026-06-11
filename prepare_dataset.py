@@ -1,17 +1,17 @@
 """
-Splits labeling_data/images + labels into train/val and writes data.yaml.
-Run this after reviewing auto-labels (and any manual fixes).
-Then run: python finetune_on_camera.py
+Splits image+label pool into train/val and writes data.yaml.
+
+Usage:
+    python prepare_dataset.py                  # original camera labels
+    python prepare_dataset.py --source merged  # merged Roboflow + camera
 """
 
+import argparse
 import random
 import shutil
 from pathlib import Path
 
 PROJECT   = Path(__file__).parent
-IMG_DIR   = PROJECT / "labeling_data" / "images"
-LBL_DIR   = PROJECT / "labeling_data" / "labels"
-DSET_DIR  = PROJECT / "labeling_data" / "dataset"
 VAL_RATIO = 0.15
 SEED      = 42
 
@@ -19,13 +19,27 @@ random.seed(SEED)
 
 
 def main():
-    images = sorted(IMG_DIR.glob("*.jpg")) + sorted(IMG_DIR.glob("*.png"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", default="original",
+                        choices=["original", "merged"],
+                        help="'original' = labeling_data/images, 'merged' = labeling_data/merged")
+    args = parser.parse_args()
 
-    # only keep images that have a matching non-empty label file
+    if args.source == "merged":
+        img_dir  = PROJECT / "labeling_data" / "merged" / "images"
+        lbl_dir  = PROJECT / "labeling_data" / "merged" / "labels"
+        dset_dir = PROJECT / "labeling_data" / "merged_dataset"
+    else:
+        img_dir  = PROJECT / "labeling_data" / "images"
+        lbl_dir  = PROJECT / "labeling_data" / "labels"
+        dset_dir = PROJECT / "labeling_data" / "dataset"
+
+    images = sorted(img_dir.glob("*.jpg")) + sorted(img_dir.glob("*.png"))
+
     paired = []
     skipped_empty = 0
     for img in images:
-        lbl = LBL_DIR / (img.stem + ".txt")
+        lbl = lbl_dir / (img.stem + ".txt")
         if lbl.exists() and lbl.read_text().strip():
             paired.append((img, lbl))
         else:
@@ -38,14 +52,13 @@ def main():
     splits = {"train": paired[:n_train], "valid": paired[n_train:]}
 
     for split, pairs in splits.items():
-        (DSET_DIR / split / "images").mkdir(parents=True, exist_ok=True)
-        (DSET_DIR / split / "labels").mkdir(parents=True, exist_ok=True)
+        (dset_dir / split / "images").mkdir(parents=True, exist_ok=True)
+        (dset_dir / split / "labels").mkdir(parents=True, exist_ok=True)
         for img, lbl in pairs:
-            shutil.copy(img, DSET_DIR / split / "images" / img.name)
-            shutil.copy(lbl, DSET_DIR / split / "labels" / lbl.name)
+            shutil.copy(img, dset_dir / split / "images" / img.name)
+            shutil.copy(lbl, dset_dir / split / "labels" / lbl.name)
 
-    # write data.yaml
-    yaml_content = f"""path: {DSET_DIR}
+    yaml_content = f"""path: {dset_dir}
 train: train/images
 val: valid/images
 
@@ -54,9 +67,9 @@ names:
   - person
   - car
 """
-    (DSET_DIR / "data.yaml").write_text(yaml_content)
+    (dset_dir / "data.yaml").write_text(yaml_content)
 
-    print(f"Dataset prepared → {DSET_DIR}")
+    print(f"Dataset prepared → {dset_dir}")
     print(f"  Train : {n_train} images")
     print(f"  Val   : {n_val} images")
     print(f"  Skipped (empty labels): {skipped_empty}")

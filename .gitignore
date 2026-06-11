@@ -25,6 +25,19 @@ Demo/
 outputs/*.mp4
 outputs/*.csv
 outputs/*.avi
+outputs/*.json
+outputs/model_comparison/
+src/outputs/
+
+# Datasets (large)
+newDatasets/
+
+# Root-level loose model weights
+/*.pt
+
+# Counting experiment outputs (user-specific, not for version control)
+counting_experiment/output_counted.mp4
+counting_experiment/roi.json
 
 # MLflow
 mlruns/

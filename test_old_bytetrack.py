@@ -12,23 +12,29 @@ from collections import defaultdict
 PROJECT  = Path(__file__).parent
 VIDEO    = PROJECT / "Demo/ANMR0006.mp4"
 
-import sys
-# allow passing model path as arg: python test_old_bytetrack.py [weights]
-_arg_weights = sys.argv[1] if len(sys.argv) > 1 else None
-if _arg_weights:
-    WEIGHTS = Path(_arg_weights)
-    OUT_VID = PROJECT / f"outputs/model_comparison/{WEIGHTS.stem}_bytetrack_30s.mp4"
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("weights", nargs="?", default=None)
+parser.add_argument("--full", action="store_true", help="Run on entire video")
+parser.add_argument("--conf-car",    type=float, default=0.40)
+parser.add_argument("--conf-person", type=float, default=0.50)
+args = parser.parse_args()
+
+if args.weights:
+    WEIGHTS = Path(args.weights)
+    suffix  = "full" if args.full else "30s"
+    cc_tag  = f"car{int(args.conf_car*100)}_p{int(args.conf_person*100)}"
+    OUT_VID = PROJECT / f"outputs/model_comparison/{WEIGHTS.stem}_{cc_tag}_{suffix}.mp4"
 else:
     WEIGHTS = PROJECT / "models/weights/best.pt"
     OUT_VID = PROJECT / "outputs/model_comparison/old_bytetrack_30s.mp4"
 OUT_VID.parent.mkdir(parents=True, exist_ok=True)
 
-# Per-class confidence thresholds — tuned from user label review
-CONF_PERSON = 0.45   # raised: reduce person FP
-CONF_CAR    = 0.18   # lowered: catch distant/small cars
+CONF_PERSON = args.conf_person
+CONF_CAR    = args.conf_car
 CONF        = min(CONF_PERSON, CONF_CAR)   # pre-filter floor passed to YOLO
 START       = 0
-DURATION_S  = 30
+DURATION_S  = None if args.full else 30
 
 
 def main():
@@ -36,9 +42,12 @@ def main():
     fps   = cap.get(cv2.CAP_PROP_FPS)
     w     = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h     = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    end_frame = START + int(fps * DURATION_S)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    end_frame = total_frames if DURATION_S is None else START + int(fps * DURATION_S)
+    duration_label = f"{end_frame/fps:.0f}s" if DURATION_S is None else f"{DURATION_S}s"
 
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    import platform
+    fourcc = cv2.VideoWriter_fourcc(*("avc1" if platform.system() == "Darwin" else "mp4v"))
     writer = cv2.VideoWriter(str(OUT_VID), fourcc, fps, (w, h + 50))
 
     model = YOLO(str(WEIGHTS))
@@ -52,7 +61,7 @@ def main():
     frame_idx       = 0
     det_counts      = []
 
-    print(f"Running old best.pt + ByteTrack for {DURATION_S}s ({end_frame} frames)...")
+    print(f"Running {WEIGHTS.name} + ByteTrack for {duration_label} ({end_frame} frames)...")
 
     while frame_idx < end_frame:
         ret, frame = cap.read()
@@ -110,7 +119,8 @@ def main():
 
     # summary
     print("\n" + "=" * 55)
-    print("RESULTS — old best.pt + ByteTrack (30s)")
+    print(f"RESULTS — {WEIGHTS.name} + ByteTrack ({duration_label})")
+    print(f"conf_car={CONF_CAR}  conf_person={CONF_PERSON}")
     print("=" * 55)
     print(f"Total frames processed : {frame_idx}")
     print(f"Mean detections/frame  : {np.mean(det_counts):.1f}")
