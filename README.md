@@ -330,7 +330,7 @@ python run_coreml.py --skip-n 3                   # skip more frames (slower mac
 | `--weights` | `models/weights/best_v3_merged.mlpackage` | CoreML package path |
 | `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
 | `--skip-n` | `2` | Run YOLO every N frames; Kalman predicts the rest |
-| `--conf-car` | `0.50` | Confidence threshold for cars |
+| `--conf-car` | `0.15` | CoreML outputs cars at 0.15–0.37; 0.15 keeps detections stable |
 | `--conf-person` | `0.45` | Confidence threshold for persons |
 | `--no-display` | off | Headless — skip `imshow`, still write output video |
 

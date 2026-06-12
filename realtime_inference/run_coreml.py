@@ -149,8 +149,8 @@ def parse_args():
                    help="Video path, '0' for webcam, or rtsp:// URL")
     p.add_argument("--skip-n",     type=int, default=2,
                    help="Run YOLO every N frames; tracker Kalman-predicts the rest (default 2)")
-    p.add_argument("--conf-car",   type=float, default=0.20,
-                   help="CoreML outputs cars at 0.15-0.37 conf (PyTorch outputs 0.45+)")
+    p.add_argument("--conf-car",   type=float, default=0.15,
+                   help="CoreML outputs cars at 0.15-0.37 conf; 0.15 keeps detections stable across frames")
     p.add_argument("--conf-person",type=float, default=0.45)
     p.add_argument("--no-display", action="store_true",
                    help="Headless mode — skip imshow, still write output video")

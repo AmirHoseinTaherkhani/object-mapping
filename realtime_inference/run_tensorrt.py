@@ -249,8 +249,9 @@ def main():
             last_dets = np.array(dets, dtype=np.float32) if dets else np.empty((0, 6), dtype=np.float32)
 
         # ── tracker update (every frame) ──────────────────────────────────────
-        dets_arr = last_dets if frame_idx % args.skip_n == 0 else np.empty((0, 6), dtype=np.float32)
-        tracks   = tracker.update(dets_arr, frame)
+        # Pass last_dets on skipped frames (not empty) so ByteTrack keeps
+        # tentative tracks alive between detection hits.
+        tracks = tracker.update(last_dets, frame)
 
         annotated = frame.copy()
         draw_roi(annotated, roi)
