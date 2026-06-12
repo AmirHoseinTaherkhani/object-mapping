@@ -132,10 +132,10 @@ def car_ghost_params(bw: float):
     from blocking new cars entering the same corridor later.
 
       radius  = max(80,  bw * 0.6)     e.g. 300px car → 180px radius
-      timeout = max(20,  90 * 100/bw)  e.g. 300px car → 30 frames (0.5s)
+      timeout = max(45,  90 * 100/bw)  e.g. 300px car → 45 frames (0.75s)
     """
     radius  = max(GHOST_RADIUS[CLASS_CAR],  bw * 0.6)
-    timeout = max(20, int(GHOST_TIMEOUT[CLASS_CAR] * 100.0 / max(bw, 100)))
+    timeout = max(45, int(GHOST_TIMEOUT[CLASS_CAR] * 100.0 / max(bw, 100)))
     return radius, timeout
 
 
@@ -315,9 +315,19 @@ def main():
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
                     if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE[cls]:
+                        # Persons: use first centroid (where the track appeared).
+                        # With MIN_TRACK_AGE=20 a person walks ~80px before the
+                        # ghost check fires; current centroid drifts to the edge of
+                        # GHOST_RADIUS=80 and escapes. Cars keep current centroid
+                        # (MIN_TRACK_AGE=5 → minimal drift).
+                        if cls == CLASS_PERSON:
+                            pts = list(centroids[tid])
+                            check_cx, check_cy = pts[0] if pts else (cx, cy)
+                        else:
+                            check_cx, check_cy = cx, cy
                         in_ghost = any(
                             g["cls"] == cls
-                            and np.hypot(cx - g["cx"], cy - g["cy"]) < g["radius"]
+                            and np.hypot(check_cx - g["cx"], check_cy - g["cy"]) < g["radius"]
                             and (frame_idx - g["died_frame"]) < g["timeout"]
                             for g in ghost_zones.values()
                         )
