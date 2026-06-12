@@ -39,6 +39,12 @@ newDatasets/
 counting_experiment/output_counted.mp4
 counting_experiment/roi.json
 
+# Real-time inference outputs and exported model formats
+realtime_inference/output_coreml.mp4
+realtime_inference/output_tensorrt.mp4
+models/weights/*.mlpackage
+models/weights/*.engine
+
 # MLflow
 mlruns/
 mlflow.db
