@@ -207,7 +207,7 @@ def main():
 
     while cap.alive:
         ret, frame = cap.read()
-        if not ret:
+        if not ret or frame is None:   # frame is None when buffer momentarily empty
             time.sleep(0.001)
             continue
 
