@@ -28,6 +28,14 @@ A computer vision pipeline for detecting, tracking, and counting vehicles and pe
 │   ├── check_counts.py         # Output verification replay
 │   └── README.md               # Detailed docs and problem-solving notes
 │
+├── realtime_inference/         # Optimised pipelines for demo / live use
+│   ├── export_coreml.py        # Export .pt → CoreML .mlpackage (Mac)
+│   ├── export_tensorrt.py      # Export .pt → TensorRT .engine (NVIDIA)
+│   ├── export_tensorrt.slurm   # Build TRT engine on Premise A100
+│   ├── run_coreml.py           # Live counting — Apple Neural Engine
+│   ├── run_tensorrt.py         # Live counting — TensorRT FP16
+│   └── README.md               # Step-by-step and argument reference
+│
 ├── src/object_detection/
 │   └── training/               # Training script variants
 │
@@ -284,7 +292,105 @@ python check_counts.py path/to/output_counted.mp4
 
 ---
 
-## 6 — Syncing Files to HPC
+## 6 — Real-time Inference (Demo)
+
+Full documentation: [realtime_inference/README.md](realtime_inference/README.md)
+
+Two hardware paths are provided. Pick the one that matches the demo machine.
+
+| Scenario | Export script | Run script | Expected FPS |
+|---|---|---|---|
+| Mac (Apple Silicon) | `export_coreml.py` | `run_coreml.py` | 30–45 fps |
+| NVIDIA GPU | `export_tensorrt.py` | `run_tensorrt.py` | 60+ fps |
+
+Both apply the same three speedups: hardware-accelerated model format, async video capture, and configurable frame skipping.
+
+---
+
+### CoreML — Mac (Apple Silicon)
+
+**Step 1 — Export once:**
+```bash
+cd realtime_inference
+python export_coreml.py
+# Produces: models/weights/best_v3_merged.mlpackage
+```
+
+**Step 2 — Run:**
+```bash
+python run_coreml.py                              # recorded video
+python run_coreml.py --source 0                   # live webcam
+python run_coreml.py --source rtsp://...          # IP camera
+python run_coreml.py --no-display                 # headless
+python run_coreml.py --skip-n 3                   # skip more frames (slower machine)
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--weights` | `models/weights/best_v3_merged.mlpackage` | CoreML package path |
+| `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
+| `--skip-n` | `2` | Run YOLO every N frames; Kalman predicts the rest |
+| `--conf-car` | `0.50` | Confidence threshold for cars |
+| `--conf-person` | `0.45` | Confidence threshold for persons |
+| `--no-display` | off | Headless — skip `imshow`, still write output video |
+
+---
+
+### TensorRT — NVIDIA GPU
+
+> **Important:** The `.engine` file must be built on the same GPU model that will run the demo. Build it on the demo machine, or on the same GPU architecture.
+
+**Step 1 — Export on the demo machine:**
+```bash
+cd realtime_inference
+python export_tensorrt.py          # FP16 by default (fastest)
+python export_tensorrt.py --fp32   # FP32 fallback if accuracy degrades
+# Produces: models/weights/best_v3_merged.engine
+```
+
+**Or build on Premise A100 and transfer back:**
+```bash
+sbatch export_tensorrt.slurm
+# After job completes:
+rsync -av at1293@premise.sr.unh.edu:~/objmap/models/weights/best_v3_merged.engine \
+          ./models/weights/
+```
+
+**Step 2 — Run:**
+```bash
+python run_tensorrt.py                            # recorded video
+python run_tensorrt.py --source 0                 # live webcam
+python run_tensorrt.py --source rtsp://...        # IP camera
+python run_tensorrt.py --no-display               # headless
+python run_tensorrt.py --device 1                 # second GPU
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--weights` | `models/weights/best_v3_merged.engine` | TensorRT engine path |
+| `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
+| `--device` | `0` | CUDA device index |
+| `--skip-n` | `2` | Run YOLO every N frames; Kalman predicts the rest |
+| `--conf-car` | `0.50` | Confidence threshold for cars |
+| `--conf-person` | `0.45` | Confidence threshold for persons |
+| `--no-display` | off | Headless — skip `imshow`, still write output video |
+
+---
+
+### Frame-skip guide
+
+ByteTrack's Kalman filter keeps tracks smooth between detection frames — increasing `--skip-n` does not cause jitter on screen.
+
+| Input FPS | `--skip-n` | Effective detection rate | When to use |
+|---|---|---|---|
+| 60 | 2 | 30 fps | Default — smooth tracking |
+| 60 | 3 | 20 fps | Marginal hardware |
+| 30 | 2 | 15 fps | Minimum comfortable tracking |
+| 30 | 1 | 30 fps | No skipping — maximum accuracy |
+
+---
+
+## 8 — Syncing Files to HPC
 
 ```bash
 # Push code + weights to Premise
