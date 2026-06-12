@@ -326,9 +326,15 @@ def main():
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
                     if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE[cls]:
+                        # Use the track's FIRST centroid for the ghost check.
+                        # With MIN_TRACK_AGE > 0 the object may have walked/driven
+                        # away from where it appeared; checking current position would
+                        # miss a ghost that it started right on top of.
+                        pts = list(centroids[tid])
+                        first_cx, first_cy = pts[0] if pts else (cx, cy)
                         in_ghost = any(
                             g["cls"] == cls
-                            and np.hypot(cx - g["cx"], cy - g["cy"]) < g["radius"]
+                            and np.hypot(first_cx - g["cx"], first_cy - g["cy"]) < g["radius"]
                             and (frame_idx - g["died_frame"]) < g["timeout"]
                             for g in ghost_zones.values()
                         )
@@ -358,10 +364,10 @@ def main():
                 if dead_cls == CLASS_CAR:
                     g_r, g_t = car_ghost_params(dead_w)
                     # Car was waiting (e.g. at pedestrian crossing): extend ghost
-                    # by however long it was stopped, capped at 300 frames (5s).
-                    # This prevents double-counting when the track dies mid-wait
-                    # and a new track is created when the car starts moving.
-                    extra = min(stopped_frames.get(dead, 0), 300)
+                    # by however long it was stopped, capped at 120 frames (2s).
+                    # Covers a typical pedestrian-crossing wait without blocking
+                    # the next car arriving in the same lane after ~2s.
+                    extra = min(stopped_frames.get(dead, 0), 120)
                     g_t += extra
                 else:
                     g_r, g_t = GHOST_RADIUS[CLASS_PERSON], GHOST_TIMEOUT[CLASS_PERSON]
