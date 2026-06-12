@@ -7,7 +7,7 @@ Two optimised pipelines for running the counting system at real-time speed, one 
 | CoreML + frame skip | `run_coreml.py` | Mac (Apple Silicon) | 30–45 fps |
 | TensorRT + frame skip | `run_tensorrt.py` | Any NVIDIA GPU | 60+ fps |
 
-Both pipelines share identical counting logic with `counting_experiment/count_objects.py`: ROI masking, parked-car filter, ghost-zone deduplication, and in-car person suppression.
+Both pipelines share the same counting logic as `counting_experiment/count_objects.py` — ROI masking, parked-car filter, ghost-zone deduplication, and in-car person suppression — but with per-class tuning to handle CoreML/TensorRT confidence distributions and frame skipping.
 
 ---
 
@@ -23,7 +23,7 @@ Both pipelines share identical counting logic with `counting_experiment/count_ob
 
 ### 2 — Frame skipping (`--skip-n N`)
 
-YOLO runs on every Nth frame only. On skipped frames, the ByteTrack tracker receives empty detections and uses its Kalman filter to predict where each object moved. The result on screen is smooth: tracks glide forward between detection hits.
+YOLO runs on every Nth frame only. On skipped frames the tracker receives the *same* detections as the previous YOLO frame (not empty), so ByteTrack's Kalman filter keeps refining existing tracks rather than entering "lost" state. The result on screen is smooth: tracks glide forward between detection hits without jitter or ID resets.
 
 - `--skip-n 2` (default): YOLO load halved, near-zero accuracy loss at 60 fps input
 - `--skip-n 3`: YOLO load at 33%, suitable for very slow hardware or high frame-rate cameras
@@ -118,9 +118,10 @@ python run_tensorrt.py --device 1
 | `--weights` | `models/weights/best_v3_merged.mlpackage` | Path to CoreML package |
 | `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
 | `--skip-n` | `2` | Run YOLO every N frames |
-| `--conf-car` | `0.50` | Confidence threshold for cars |
+| `--conf-car` | `0.15` | CoreML outputs car confidence in the 0.15–0.37 range (vs 0.45+ for PyTorch); 0.15 keeps detections stable across frames |
 | `--conf-person` | `0.45` | Confidence threshold for persons |
 | `--no-display` | off | Headless mode — skip `imshow` |
+| `--verbose` | off | Print per-track counting decisions (`COUNTED`, `GHOST-SUPP`, `LIVE-SUPP`, `DIED-YOUNG`, `GHOST-ZONE`) for diagnosis |
 
 ### `run_tensorrt.py`
 

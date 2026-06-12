@@ -333,6 +333,7 @@ python run_coreml.py --skip-n 3                   # skip more frames (slower mac
 | `--conf-car` | `0.15` | CoreML outputs cars at 0.15–0.37; 0.15 keeps detections stable |
 | `--conf-person` | `0.45` | Confidence threshold for persons |
 | `--no-display` | off | Headless — skip `imshow`, still write output video |
+| `--verbose` | off | Print per-track counting decisions for diagnosis |
 
 ---
 
