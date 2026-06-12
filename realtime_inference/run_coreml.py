@@ -44,12 +44,14 @@ CLASS_CAR     = 1
 COLORS        = {CLASS_CAR: (0, 220, 0), CLASS_PERSON: (255, 100, 0)}
 MOTION_BUFFER = 45
 MOTION_MIN_PX = 8
-MIN_TRACK_AGE = 3
-# Ghost zone is class-specific: cars move between fragmentation events so need a
-# larger spatial and temporal window; persons need a tighter zone to avoid blocking
-# separate pedestrians walking the same path.
-GHOST_RADIUS  = {CLASS_CAR: 80, CLASS_PERSON: 40}
-GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 30}
+# Class-specific thresholds.
+# Cars: CoreML confidence fluctuates → tracks fragment often → count early, long ghost window.
+# Persons: stable detections → use same values as count_objects.py so arm-opening fragments
+#   die before reaching MIN_TRACK_AGE (they rarely live 20+ frames) and the ghost window
+#   is long enough to absorb any that do create a new track.
+MIN_TRACK_AGE = {CLASS_CAR: 3,  CLASS_PERSON: 20}
+GHOST_RADIUS  = {CLASS_CAR: 80, CLASS_PERSON: 80}
+GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 120}
 
 # CoreML converts the model's confidence scores to a lower range than PyTorch.
 # Cars consistently output 0.15–0.37; persons stay near 0.93. We use a low
@@ -294,7 +296,7 @@ def main():
                     color = COLORS.get(cls, (200, 200, 200))
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
-                    if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE:
+                    if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE[cls]:
                         g_radius  = GHOST_RADIUS[cls]
                         g_timeout = GHOST_TIMEOUT[cls]
                         in_ghost = any(
@@ -314,7 +316,7 @@ def main():
                         elif args.verbose:
                             print(f"f{frame_idx:5d} GHOST-SUPP tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}")
                     elif tid not in counted_ids and args.verbose and track_age[tid] % 10 == 0:
-                        print(f"f{frame_idx:5d} WAITING    tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}/{MIN_TRACK_AGE}")
+                        print(f"f{frame_idx:5d} WAITING    tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}/{MIN_TRACK_AGE[cls]}")
 
                 cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(annotated, label, (x1, y1 - 6),
@@ -328,7 +330,8 @@ def main():
                                      "cls": cls_map.get(dead, -1),
                                      "died_frame": frame_idx}
                 if args.verbose and dead not in counted_ids:
-                    print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if cls_map.get(dead)==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE} — never counted")
+                    dead_cls = cls_map.get(dead, -1)
+                    print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if dead_cls==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE.get(dead_cls,'?')} — never counted")
         ghost_zones = {t: g for t, g in ghost_zones.items()
                        if (frame_idx - g["died_frame"]) < GHOST_TIMEOUT.get(g["cls"], 30)}
         active_tids = current_tids
