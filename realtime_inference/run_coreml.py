@@ -45,13 +45,13 @@ COLORS        = {CLASS_CAR: (0, 220, 0), CLASS_PERSON: (255, 100, 0)}
 MOTION_BUFFER = 45
 MOTION_MIN_PX = 8
 # Class-specific thresholds.
-# Cars: CoreML confidence fluctuates → tracks fragment often → count early, long ghost window.
-# Persons: stable detections → use same values as count_objects.py so arm-opening fragments
-#   die before reaching MIN_TRACK_AGE (they rarely live 20+ frames) and the ghost window
-#   is long enough to absorb any that do create a new track.
-MIN_TRACK_AGE = {CLASS_CAR: 3,  CLASS_PERSON: 20}
+# Persons: match count_objects.py exactly — Kalman-predicted skip frames keep person
+#   tracks stable, so arm-opening fragments die before reaching MIN_TRACK_AGE=30.
+# Cars: CoreML confidence fluctuates → lower MIN_TRACK_AGE; Kalman prediction now
+#   keeps velocity correct across skip frames, reducing fragmentation.
+MIN_TRACK_AGE = {CLASS_CAR: 5,  CLASS_PERSON: 30}
 GHOST_RADIUS  = {CLASS_CAR: 80, CLASS_PERSON: 80}
-GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 120}
+GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 300}
 
 # CoreML converts the model's confidence scores to a lower range than PyTorch.
 # Cars consistently output 0.15–0.37; persons stay near 0.93. We use a low
@@ -266,9 +266,11 @@ def main():
             last_dets = np.array(dets, dtype=np.float32) if dets else np.empty((0, 6), dtype=np.float32)
 
         # ── tracker update (every frame) ──────────────────────────────────────
-        # Pass last_dets on skipped frames rather than empty so ByteTrack keeps
-        # tentative tracks alive between detection hits.
-        tracks = tracker.update(last_dets, frame)
+        # On inference frames pass real detections; on skip frames pass empty so
+        # ByteTrack uses its Kalman velocity estimate rather than a stale position
+        # that would zero out the velocity and cause fragmentation on the next hit.
+        dets_for_tracker = last_dets if frame_idx % args.skip_n == 0 else np.empty((0, 6), dtype=np.float32)
+        tracks = tracker.update(dets_for_tracker, frame)
 
         annotated = frame.copy()
         draw_roi(annotated, roi)
