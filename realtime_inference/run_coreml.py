@@ -220,11 +220,12 @@ def main():
         cv2.namedWindow("CoreML — Real-time Counting", cv2.WINDOW_NORMAL)
 
     # ── counting state ─────────────────────────────────────────────────────────
-    centroids:   dict = {}
-    track_age:   dict = {}
-    cls_map:     dict = {}
-    box_width:   dict = {}   # tid → last known box width (pixels), for adaptive ghost radius
-    counted_ids: set  = set()
+    centroids:        dict = {}
+    track_age:        dict = {}
+    cls_map:          dict = {}
+    box_width:        dict = {}  # tid → last known box width (pixels)
+    stopped_frames:   dict = {}  # tid → consecutive frames nearly stationary
+    counted_ids:      set  = set()
     ghost_zones: dict = {}
     active_tids: set  = set()
     car_count    = 0
@@ -302,10 +303,20 @@ def main():
                 if tid not in centroids:
                     centroids[tid] = deque(maxlen=MOTION_BUFFER)
                     track_age[tid] = 0
+                    stopped_frames[tid] = 0
                 centroids[tid].append((cx, cy))
                 track_age[tid] += 1
                 cls_map[tid] = cls
                 box_width[tid] = x2 - x1
+
+                # track consecutive stationary frames so ghost timeout can be
+                # extended for cars that stop (e.g. waiting at a pedestrian crossing)
+                if len(centroids[tid]) >= 3:
+                    recent = np.array(list(centroids[tid])[-3:])
+                    if np.max(np.linalg.norm(recent - recent[0], axis=1)) < MOTION_MIN_PX * 2:
+                        stopped_frames[tid] = stopped_frames.get(tid, 0) + 1
+                    else:
+                        stopped_frames[tid] = 0
 
                 if cls == CLASS_CAR and is_stationary(centroids[tid]):
                     color = (100, 100, 100)
@@ -346,6 +357,12 @@ def main():
                 dead_w   = box_width.get(dead, 0)
                 if dead_cls == CLASS_CAR:
                     g_r, g_t = car_ghost_params(dead_w)
+                    # Car was waiting (e.g. at pedestrian crossing): extend ghost
+                    # by however long it was stopped, capped at 300 frames (5s).
+                    # This prevents double-counting when the track dies mid-wait
+                    # and a new track is created when the car starts moving.
+                    extra = min(stopped_frames.get(dead, 0), 300)
+                    g_t += extra
                 else:
                     g_r, g_t = GHOST_RADIUS[CLASS_PERSON], GHOST_TIMEOUT[CLASS_PERSON]
                 ghost_zones[dead] = {
