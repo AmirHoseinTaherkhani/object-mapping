@@ -22,9 +22,10 @@ def main():
     print(f"Exporting {WEIGHTS_IN.name} → CoreML …")
     model = YOLO(str(WEIGHTS_IN))
 
-    # nms=True: bakes NMS into the model graph so the CoreML runtime handles it,
-    # avoiding a Python-side NMS step after inference.
-    out = model.export(format="coreml", imgsz=640, nms=True)
+    # nms=False (default): NMS runs in Python after inference.
+    # nms=True bakes it into the CoreML graph but breaks ultralytics' output
+    # parsing in 8.x, causing empty detections. Python NMS is negligible overhead.
+    out = model.export(format="coreml", imgsz=640)
     print(f"\nExported → {out}")
     print("Copy the .mlpackage folder next to run_coreml.py or into models/weights/")
     print("Then run:  python run_coreml.py")
