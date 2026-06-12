@@ -44,9 +44,12 @@ CLASS_CAR     = 1
 COLORS        = {CLASS_CAR: (0, 220, 0), CLASS_PERSON: (255, 100, 0)}
 MOTION_BUFFER = 45
 MOTION_MIN_PX = 8
-MIN_TRACK_AGE = 3    # CoreML fragmentation: fragments often die at age=1–3, count early
-GHOST_RADIUS  = 40   # fragments of same object are within ~5px; 40px avoids blocking nearby new arrivals
-GHOST_TIMEOUT = 30   # 0.5s at 60fps — catches immediate re-fragments, doesn't block next real person
+MIN_TRACK_AGE = 3
+# Ghost zone is class-specific: cars move between fragmentation events so need a
+# larger spatial and temporal window; persons need a tighter zone to avoid blocking
+# separate pedestrians walking the same path.
+GHOST_RADIUS  = {CLASS_CAR: 80, CLASS_PERSON: 40}
+GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 30}
 
 # CoreML converts the model's confidence scores to a lower range than PyTorch.
 # Cars consistently output 0.15–0.37; persons stay near 0.93. We use a low
@@ -292,10 +295,12 @@ def main():
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
                     if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE:
+                        g_radius  = GHOST_RADIUS[cls]
+                        g_timeout = GHOST_TIMEOUT[cls]
                         in_ghost = any(
                             g["cls"] == cls
-                            and np.hypot(cx - g["cx"], cy - g["cy"]) < GHOST_RADIUS
-                            and (frame_idx - g["died_frame"]) < GHOST_TIMEOUT
+                            and np.hypot(cx - g["cx"], cy - g["cy"]) < g_radius
+                            and (frame_idx - g["died_frame"]) < g_timeout
                             for g in ghost_zones.values()
                         )
                         counted_ids.add(tid)
