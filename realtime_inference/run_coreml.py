@@ -330,7 +330,7 @@ def main():
                 if args.verbose and dead not in counted_ids:
                     print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if cls_map.get(dead)==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE} — never counted")
         ghost_zones = {t: g for t, g in ghost_zones.items()
-                       if (frame_idx - g["died_frame"]) < GHOST_TIMEOUT}
+                       if (frame_idx - g["died_frame"]) < GHOST_TIMEOUT.get(g["cls"], 30)}
         active_tids = current_tids
 
         draw_overlay(annotated, car_count, person_count, live_fps, args.skip_n)
