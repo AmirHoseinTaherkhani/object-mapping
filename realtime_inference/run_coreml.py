@@ -220,12 +220,11 @@ def main():
         cv2.namedWindow("CoreML — Real-time Counting", cv2.WINDOW_NORMAL)
 
     # ── counting state ─────────────────────────────────────────────────────────
-    centroids:        dict = {}
-    track_age:        dict = {}
-    cls_map:          dict = {}
-    box_width:        dict = {}  # tid → last known box width (pixels)
-    stopped_frames:   dict = {}  # tid → consecutive frames nearly stationary
-    counted_ids:      set  = set()
+    centroids:   dict = {}
+    track_age:   dict = {}
+    cls_map:     dict = {}
+    box_width:   dict = {}   # tid → last known box width (pixels), for adaptive ghost radius
+    counted_ids: set  = set()
     ghost_zones: dict = {}
     active_tids: set  = set()
     car_count    = 0
@@ -303,20 +302,10 @@ def main():
                 if tid not in centroids:
                     centroids[tid] = deque(maxlen=MOTION_BUFFER)
                     track_age[tid] = 0
-                    stopped_frames[tid] = 0
                 centroids[tid].append((cx, cy))
                 track_age[tid] += 1
                 cls_map[tid] = cls
                 box_width[tid] = x2 - x1
-
-                # track consecutive stationary frames so ghost timeout can be
-                # extended for cars that stop (e.g. waiting at a pedestrian crossing)
-                if len(centroids[tid]) >= 3:
-                    recent = np.array(list(centroids[tid])[-3:])
-                    if np.max(np.linalg.norm(recent - recent[0], axis=1)) < MOTION_MIN_PX * 2:
-                        stopped_frames[tid] = stopped_frames.get(tid, 0) + 1
-                    else:
-                        stopped_frames[tid] = 0
 
                 if cls == CLASS_CAR and is_stationary(centroids[tid]):
                     color = (100, 100, 100)
@@ -326,15 +315,9 @@ def main():
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
                     if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE[cls]:
-                        # Use the track's FIRST centroid for the ghost check.
-                        # With MIN_TRACK_AGE > 0 the object may have walked/driven
-                        # away from where it appeared; checking current position would
-                        # miss a ghost that it started right on top of.
-                        pts = list(centroids[tid])
-                        first_cx, first_cy = pts[0] if pts else (cx, cy)
                         in_ghost = any(
                             g["cls"] == cls
-                            and np.hypot(first_cx - g["cx"], first_cy - g["cy"]) < g["radius"]
+                            and np.hypot(cx - g["cx"], cy - g["cy"]) < g["radius"]
                             and (frame_idx - g["died_frame"]) < g["timeout"]
                             for g in ghost_zones.values()
                         )
@@ -363,12 +346,6 @@ def main():
                 dead_w   = box_width.get(dead, 0)
                 if dead_cls == CLASS_CAR:
                     g_r, g_t = car_ghost_params(dead_w)
-                    # Car was waiting (e.g. at pedestrian crossing): extend ghost
-                    # by however long it was stopped, capped at 120 frames (2s).
-                    # Covers a typical pedestrian-crossing wait without blocking
-                    # the next car arriving in the same lane after ~2s.
-                    extra = min(stopped_frames.get(dead, 0), 120)
-                    g_t += extra
                 else:
                     g_r, g_t = GHOST_RADIUS[CLASS_PERSON], GHOST_TIMEOUT[CLASS_PERSON]
                 ghost_zones[dead] = {
