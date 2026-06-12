@@ -154,6 +154,8 @@ def parse_args():
     p.add_argument("--conf-person",type=float, default=0.45)
     p.add_argument("--no-display", action="store_true",
                    help="Headless mode — skip imshow, still write output video")
+    p.add_argument("--verbose", action="store_true",
+                   help="Print per-track counting decisions to terminal for diagnosis")
     return p.parse_args()
 
 
@@ -302,6 +304,12 @@ def main():
                                 car_count += 1
                             else:
                                 person_count += 1
+                            if args.verbose:
+                                print(f"f{frame_idx:5d} COUNTED    tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}  total cars={car_count} ppl={person_count}")
+                        elif args.verbose:
+                            print(f"f{frame_idx:5d} GHOST-SUPP tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}")
+                    elif tid not in counted_ids and args.verbose and track_age[tid] % 10 == 0:
+                        print(f"f{frame_idx:5d} WAITING    tid={tid:4d} {'car' if cls==CLASS_CAR else 'person'} age={track_age[tid]}/{MIN_TRACK_AGE}")
 
                 cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(annotated, label, (x1, y1 - 6),
@@ -314,6 +322,8 @@ def main():
                 ghost_zones[dead] = {"cx": lx, "cy": ly,
                                      "cls": cls_map.get(dead, -1),
                                      "died_frame": frame_idx}
+                if args.verbose and dead not in counted_ids:
+                    print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if cls_map.get(dead)==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE} — never counted")
         ghost_zones = {t: g for t, g in ghost_zones.items()
                        if (frame_idx - g["died_frame"]) < GHOST_TIMEOUT}
         active_tids = current_tids
