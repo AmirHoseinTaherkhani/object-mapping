@@ -44,9 +44,9 @@ CLASS_CAR     = 1
 COLORS        = {CLASS_CAR: (0, 220, 0), CLASS_PERSON: (255, 100, 0)}
 MOTION_BUFFER = 45
 MOTION_MIN_PX = 8
-MIN_TRACK_AGE = 5    # CoreML fragmentation: lower threshold so fragments still reach count
-GHOST_RADIUS  = 80
-GHOST_TIMEOUT = 90   # 1.5s at 60fps — long enough to suppress fragments, short enough for busy roads
+MIN_TRACK_AGE = 3    # CoreML fragmentation: fragments often die at age=1–3, count early
+GHOST_RADIUS  = 40   # fragments of same object are within ~5px; 40px avoids blocking nearby new arrivals
+GHOST_TIMEOUT = 30   # 0.5s at 60fps — catches immediate re-fragments, doesn't block next real person
 
 # CoreML converts the model's confidence scores to a lower range than PyTorch.
 # Cars consistently output 0.15–0.37; persons stay near 0.93. We use a low
