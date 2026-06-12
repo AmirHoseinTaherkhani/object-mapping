@@ -207,6 +207,7 @@ def main():
     centroids:   dict = {}
     track_age:   dict = {}
     cls_map:     dict = {}
+    box_width:   dict = {}   # tid → last known box width (pixels), for adaptive ghost radius
     counted_ids: set  = set()
     ghost_zones: dict = {}
     active_tids: set  = set()
@@ -288,6 +289,7 @@ def main():
                 centroids[tid].append((cx, cy))
                 track_age[tid] += 1
                 cls_map[tid] = cls
+                box_width[tid] = x2 - x1
 
                 if cls == CLASS_CAR and is_stationary(centroids[tid]):
                     color = (100, 100, 100)
@@ -297,11 +299,16 @@ def main():
                     label = f"{'car' if cls == CLASS_CAR else 'person'} #{tid}"
 
                     if tid not in counted_ids and track_age[tid] >= MIN_TRACK_AGE[cls]:
-                        g_radius  = GHOST_RADIUS[cls]
+                        # For cars use a size-adaptive radius: close/large cars move more
+                        # pixels between fragmentation events due to perspective foreshortening.
+                        if cls == CLASS_CAR:
+                            g_radius = max(GHOST_RADIUS[cls], box_width[tid] * 0.6)
+                        else:
+                            g_radius = GHOST_RADIUS[cls]
                         g_timeout = GHOST_TIMEOUT[cls]
                         in_ghost = any(
                             g["cls"] == cls
-                            and np.hypot(cx - g["cx"], cy - g["cy"]) < g_radius
+                            and np.hypot(cx - g["cx"], cy - g["cy"]) < max(g_radius, g.get("radius", g_radius))
                             and (frame_idx - g["died_frame"]) < g_timeout
                             for g in ghost_zones.values()
                         )
@@ -326,11 +333,15 @@ def main():
         for dead in active_tids - current_tids:
             if dead in centroids and len(centroids[dead]):
                 lx, ly = centroids[dead][-1]
-                ghost_zones[dead] = {"cx": lx, "cy": ly,
-                                     "cls": cls_map.get(dead, -1),
-                                     "died_frame": frame_idx}
+                dead_cls = cls_map.get(dead, -1)
+                dead_w   = box_width.get(dead, 0)
+                ghost_zones[dead] = {
+                    "cx": lx, "cy": ly,
+                    "cls": dead_cls,
+                    "died_frame": frame_idx,
+                    "radius": max(GHOST_RADIUS.get(dead_cls, 80), dead_w * 0.6),
+                }
                 if args.verbose and dead not in counted_ids:
-                    dead_cls = cls_map.get(dead, -1)
                     print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if dead_cls==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE.get(dead_cls,'?')} — never counted")
         ghost_zones = {t: g for t, g in ghost_zones.items()
                        if (frame_idx - g["died_frame"]) < GHOST_TIMEOUT.get(g["cls"], 30)}
