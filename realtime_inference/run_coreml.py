@@ -127,14 +127,15 @@ def car_ghost_params(bw: float):
     """Return (radius, timeout) scaled by box width for a car ghost zone.
 
     Close/large cars (big bw) need a wider radius because their centroid moves
-    more pixels between fragmentation events, but a shorter timeout because
-    fragments appear within a few frames — not 90. This prevents the wide radius
-    from blocking new cars entering the same corridor later.
+    more pixels between fragmentation events (e.g. edge-clipping causes >180px
+    centroid jumps for 300px boxes), but a shorter timeout because fragments
+    appear within a few frames — not 90. This prevents the wide radius from
+    blocking new cars entering the same corridor later.
 
-      radius  = max(80,  bw * 0.6)     e.g. 300px car → 180px radius
+      radius  = max(80,  bw * 0.8)     e.g. 300px car → 240px radius
       timeout = max(45,  90 * 100/bw)  e.g. 300px car → 45 frames (0.75s)
     """
-    radius  = max(GHOST_RADIUS[CLASS_CAR],  bw * 0.6)
+    radius  = max(GHOST_RADIUS[CLASS_CAR],  bw * 0.8)
     timeout = max(45, int(GHOST_TIMEOUT[CLASS_CAR] * 100.0 / max(bw, 100)))
     return radius, timeout
 
@@ -350,23 +351,31 @@ def main():
 
         # ghost bookkeeping
         for dead in active_tids - current_tids:
-            if dead in centroids and len(centroids[dead]):
-                lx, ly = centroids[dead][-1]
-                dead_cls = cls_map.get(dead, -1)
-                dead_w   = box_width.get(dead, 0)
-                if dead_cls == CLASS_CAR:
-                    g_r, g_t = car_ghost_params(dead_w)
-                else:
-                    g_r, g_t = GHOST_RADIUS[CLASS_PERSON], GHOST_TIMEOUT[CLASS_PERSON]
-                ghost_zones[dead] = {
-                    "cx": lx, "cy": ly,
-                    "cls": dead_cls,
-                    "died_frame": frame_idx,
-                    "radius":  g_r,
-                    "timeout": g_t,
-                }
-                if args.verbose and dead not in counted_ids:
-                    print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if dead_cls==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE.get(dead_cls,'?')} — never counted")
+            if dead not in centroids or not len(centroids[dead]):
+                continue
+            lx, ly   = centroids[dead][-1]
+            dead_cls = cls_map.get(dead, -1)
+            dead_w   = box_width.get(dead, 0)
+            if dead not in counted_ids:
+                # DIED-YOUNG: never reached MIN_TRACK_AGE.
+                # Don't create a ghost zone — a fragment at the entry point
+                # must not suppress the next real track that starts there.
+                if args.verbose:
+                    print(f"f{frame_idx:5d} DIED-YOUNG tid={dead:4d} {'car' if dead_cls==CLASS_CAR else 'person'} age={track_age.get(dead, 0)}/{MIN_TRACK_AGE.get(dead_cls,'?')} — no ghost")
+                continue
+            if dead_cls == CLASS_CAR:
+                g_r, g_t = car_ghost_params(dead_w)
+            else:
+                g_r, g_t = GHOST_RADIUS[CLASS_PERSON], GHOST_TIMEOUT[CLASS_PERSON]
+            ghost_zones[dead] = {
+                "cx": lx, "cy": ly,
+                "cls": dead_cls,
+                "died_frame": frame_idx,
+                "radius":  g_r,
+                "timeout": g_t,
+            }
+            if args.verbose:
+                print(f"f{frame_idx:5d} GHOST-ZONE tid={dead:4d} {'car' if dead_cls==CLASS_CAR else 'person'} at ({lx:.0f},{ly:.0f}) r={g_r:.0f} t={g_t}")
         ghost_zones = {t: g for t, g in ghost_zones.items()
                        if (frame_idx - g["died_frame"]) < g["timeout"]}
         active_tids = current_tids
