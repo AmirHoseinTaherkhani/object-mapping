@@ -38,7 +38,7 @@ DEFAULT_VIDEO   = ROOT / "Demo/ANMR0006.mp4"
 ROI_FILE        = ROOT / "counting_experiment/roi.json"
 OUT_VID         = HERE / "output_coreml.mp4"
 
-# ── counting constants (keep in sync with count_objects.py) ────────────────────
+# ── counting constants ─────────────────────────────────────────────────────────
 CLASS_PERSON  = 0
 CLASS_CAR     = 1
 COLORS        = {CLASS_CAR: (0, 220, 0), CLASS_PERSON: (255, 100, 0)}
@@ -47,6 +47,12 @@ MOTION_MIN_PX = 8
 MIN_TRACK_AGE = 30
 GHOST_RADIUS  = 80
 GHOST_TIMEOUT = 300
+
+# CoreML converts the model's confidence scores to a lower range than PyTorch.
+# Cars consistently output 0.15–0.37; persons stay near 0.93. We use a low
+# pre-NMS floor here and let the per-class thresholds (conf_car / conf_person)
+# do the real filtering.
+COREML_CONF_FLOOR = 0.10
 
 
 # ── async capture ──────────────────────────────────────────────────────────────
@@ -143,7 +149,8 @@ def parse_args():
                    help="Video path, '0' for webcam, or rtsp:// URL")
     p.add_argument("--skip-n",     type=int, default=2,
                    help="Run YOLO every N frames; tracker Kalman-predicts the rest (default 2)")
-    p.add_argument("--conf-car",   type=float, default=0.50)
+    p.add_argument("--conf-car",   type=float, default=0.20,
+                   help="CoreML outputs cars at 0.15-0.37 conf (PyTorch outputs 0.45+)")
     p.add_argument("--conf-person",type=float, default=0.45)
     p.add_argument("--no-display", action="store_true",
                    help="Headless mode — skip imshow, still write output video")
@@ -178,7 +185,10 @@ def main():
     cap = AsyncCapture(args.source)
     print(f"Source: {args.source}  ({cap.width}×{cap.height} @ {cap.fps:.0f}fps)")
 
-    tracker = ByteTrack(frame_rate=int(cap.fps), track_buffer=600)
+    # track_thresh=0.15: CoreML outputs car confidences in the 0.15-0.37 range
+    # (vs 0.45+ for PyTorch). ByteTrack only creates new tracks from detections
+    # above track_thresh, so we lower it to match CoreML's output distribution.
+    tracker = ByteTrack(frame_rate=int(cap.fps), track_buffer=600, track_thresh=0.15)
     print(f"Tracker ready. YOLO every {args.skip_n} frame(s).\n")
 
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
@@ -197,13 +207,11 @@ def main():
     car_count    = 0
     person_count = 0
 
-    conf_floor = min(args.conf_car, args.conf_person)
-
     # ── fps counter ────────────────────────────────────────────────────────────
     fps_times: deque = deque(maxlen=30)
 
-    frame_idx   = 0
-    last_dets   = np.empty((0, 6), dtype=np.float32)
+    frame_idx = 0
+    last_dets = np.empty((0, 6), dtype=np.float32)
 
     print("Running — press Q to stop.\n")
 
@@ -219,7 +227,7 @@ def main():
 
         # ── inference (every skip_n frames) ───────────────────────────────────
         if frame_idx % args.skip_n == 0:
-            results  = model(frame, conf=conf_floor, verbose=False)[0]
+            results  = model(frame, conf=COREML_CONF_FLOOR, verbose=False)[0]
             boxes_np = results.boxes
             dets = []
             if boxes_np is not None and len(boxes_np):
@@ -251,9 +259,9 @@ def main():
             last_dets = np.array(dets, dtype=np.float32) if dets else np.empty((0, 6), dtype=np.float32)
 
         # ── tracker update (every frame) ──────────────────────────────────────
-        # On skipped frames pass empty dets; ByteTrack Kalman-predicts positions.
-        dets_arr = last_dets if frame_idx % args.skip_n == 0 else np.empty((0, 6), dtype=np.float32)
-        tracks   = tracker.update(dets_arr, frame)
+        # Pass last_dets on skipped frames rather than empty so ByteTrack keeps
+        # tentative tracks alive between detection hits.
+        tracks = tracker.update(last_dets, frame)
 
         annotated = frame.copy()
         draw_roi(annotated, roi)
