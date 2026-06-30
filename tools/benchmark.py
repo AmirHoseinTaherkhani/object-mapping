@@ -17,7 +17,7 @@ ROOT = Path(__file__).parent.parent
 
 
 def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str,
-                 roi: str = "") -> dict:
+                 roi: str = "", model_tag: str = "") -> dict:
     cmd = [
         sys.executable,
         str(ROOT / "realtime_inference/run_coreml.py"),
@@ -31,8 +31,9 @@ def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str,
     if roi:
         cmd += ["--roi", roi]
 
-    src_stem = Path(source).stem
-    out_path = ROOT / "realtime_inference" / "outputs" / src_stem / f"skip_n_{skip_n}.mp4"
+    src_stem  = Path(source).stem
+    tag       = model_tag or Path(weights).stem
+    out_path  = ROOT / "realtime_inference" / "outputs" / src_stem / tag / f"skip_n_{skip_n}.mp4"
     cmd += ["--output", str(out_path)]
 
     t0 = time.perf_counter()
@@ -119,7 +120,8 @@ def main() -> None:
         rows = []
         for sn in args.skip_n:
             print(f"\n  Running {label}  skip-n={sn} …", flush=True)
-            rows.append(run_pipeline(source, sn, args.max_frames, args.weights, roi))
+            rows.append(run_pipeline(source, sn, args.max_frames, args.weights, roi,
+                                     model_tag=Path(args.weights).stem))
         print_table(label, rows)
 
     print()

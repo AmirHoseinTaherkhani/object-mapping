@@ -59,9 +59,50 @@ GHOST_TIMEOUT = {CLASS_CAR: 90, CLASS_PERSON: 120}
 COREML_CONF_FLOOR = 0.10
 
 
-# ── async capture ──────────────────────────────────────────────────────────────
+# ── capture classes ────────────────────────────────────────────────────────────
+class SyncCapture:
+    """Simple synchronous capture for recorded files.
+
+    Reads one frame at a time in the main thread — no background thread, no
+    frame dropping.  AsyncCapture's background thread caused SIGABRT crashes
+    on long CoreML runs (1800+ frames) due to interaction between the reader
+    thread and the ANE's internal state.  For file sources the I/O overhead
+    is negligible, so sync reading is both safer and equally fast.
+    """
+
+    def __init__(self, source):
+        self.cap = cv2.VideoCapture(str(source))
+        if not self.cap.isOpened():
+            sys.exit(f"Cannot open source: {source}")
+        self._alive = True
+
+    def read(self):
+        ret, frame = self.cap.read()
+        if not ret:
+            self._alive = False
+        return ret, frame
+
+    @property
+    def fps(self):    return self.cap.get(cv2.CAP_PROP_FPS) or 30.0
+    @property
+    def width(self):  return int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    @property
+    def height(self): return int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    @property
+    def alive(self):  return self._alive
+
+    def release(self):
+        self.cap.release()
+
+
 class AsyncCapture:
-    """Background thread reads frames so inference never waits on I/O."""
+    """Background-thread capture for live/RTSP sources.
+
+    Keeps a small ring buffer so the main thread never blocks on I/O.
+    Old frames are dropped when inference is slower than the camera —
+    the correct behaviour for a live feed.  Do NOT use for recorded files
+    (frames would be silently dropped and long runs can crash CoreML).
+    """
 
     def __init__(self, source):
         src = int(source) if str(source).isdigit() else str(source)
@@ -87,7 +128,7 @@ class AsyncCapture:
         with self._lock:
             if self._q:
                 return True, self._q.popleft()
-        return self._running, None  # None while buffer momentarily empty
+        return self._running, None
 
     @property
     def fps(self):    return self.cap.get(cv2.CAP_PROP_FPS) or 30.0
@@ -101,6 +142,14 @@ class AsyncCapture:
     def release(self):
         self._running = False
         self.cap.release()
+
+
+def open_capture(source: str):
+    """Return SyncCapture for files, AsyncCapture for live/RTSP sources."""
+    src = str(source)
+    if src.isdigit() or src.startswith("rtsp://") or src.startswith("rtmp://"):
+        return AsyncCapture(source)
+    return SyncCapture(source)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -216,7 +265,7 @@ def main():
     except ImportError:
         sys.exit("boxmot not installed. Run: pip install boxmot")
 
-    cap = AsyncCapture(args.source)
+    cap = open_capture(args.source)
     print(f"Source: {args.source}  ({cap.width}×{cap.height} @ {cap.fps:.0f}fps)")
 
     # track_thresh=0.15: CoreML outputs car confidences in the 0.15-0.37 range
@@ -260,7 +309,9 @@ def main():
 
     while cap.alive:
         ret, frame = cap.read()
-        if not ret or frame is None:   # frame is None when buffer momentarily empty
+        if not ret:
+            break
+        if frame is None:   # AsyncCapture: buffer momentarily empty on live source
             time.sleep(0.001)
             continue
 

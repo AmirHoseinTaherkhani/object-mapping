@@ -117,7 +117,7 @@ python run_tensorrt.py --device 1
 |---|---|---|
 | `--weights` | `models/weights/best_v3_merged.mlpackage` | Path to CoreML package |
 | `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
-| `--skip-n` | `2` | Run YOLO every N frames |
+| `--skip-n` | `1` | Run YOLO every N frames |
 | `--conf-car` | `0.15` | CoreML outputs car confidence in the 0.15–0.37 range (vs 0.45+ for PyTorch); 0.15 keeps detections stable across frames |
 | `--conf-person` | `0.45` | Confidence threshold for persons |
 | `--no-display` | off | Headless mode — skip `imshow` |
