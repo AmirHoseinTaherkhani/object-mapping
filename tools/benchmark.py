@@ -16,7 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 
 
-def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str) -> dict:
+def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str,
+                 roi: str = "") -> dict:
     cmd = [
         sys.executable,
         str(ROOT / "realtime_inference/run_coreml.py"),
@@ -27,6 +28,8 @@ def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str) -> dic
     ]
     if max_frames:
         cmd += ["--max-frames", str(max_frames)]
+    if roi:
+        cmd += ["--roi", roi]
 
     t0 = time.perf_counter()
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
@@ -80,30 +83,34 @@ def main() -> None:
                    help="Frames to process per run (default: 1800 ≈ 30s at 60fps)")
     p.add_argument("--weights",    default=str(ROOT / "models/weights/best_v3_merged.mlpackage"),
                    help="CoreML weights path")
-    p.add_argument("--custom-video",
-                   default=str(ROOT / "Demo/ANMR0006.mp4"),
-                   help="Primary (custom) video")
-    p.add_argument("--benchmark-video",
-                   default=str(ROOT / "Demo/benchmark_stmarc.avi"),
-                   help="Benchmark video (UrbanTracker St-Marc by default)")
     args = p.parse_args()
 
+    # (source_path, label, roi)
+    # roi="none" disables ROI masking for videos that don't use the custom ROI polygon
     videos = [
-        ("Custom video (ANMR0006)",             args.custom_video),
-        ("Benchmark: UrbanTracker St-Marc",      args.benchmark_video),
+        (str(ROOT / "Demo/ANMR0006.mp4"),
+         "Custom surveillance (ANMR0006)", ""),
+        (str(ROOT / "Demo/Videos/13092338_2160_3840_30fps.mp4"),
+         "Overhead city street (76s)", "none"),
+        (str(ROOT / "Demo/Videos/14414218_1080_1920_60fps.mp4"),
+         "Elevated highway (16s)", "none"),
+        (str(ROOT / "Demo/Videos/14508550_2160_3840_60fps.mp4"),
+         "Bridge overhead (11s)", "none"),
+        (str(ROOT / "Demo/benchmark_stmarc.avi"),
+         "UrbanTracker St-Marc (66s)", "none"),
     ]
 
     print(f"\nBenchmark — skip-n: {args.skip_n}  max-frames: {args.max_frames}")
     print(f"Weights: {Path(args.weights).name}")
 
-    for label, source in videos:
+    for source, label, roi in videos:
         if not Path(source).exists():
             print(f"\n[SKIP] {label} — file not found: {source}")
             continue
         rows = []
         for sn in args.skip_n:
             print(f"\n  Running {label}  skip-n={sn} …", flush=True)
-            rows.append(run_pipeline(source, sn, args.max_frames, args.weights))
+            rows.append(run_pipeline(source, sn, args.max_frames, args.weights, roi))
         print_table(label, rows)
 
     print()

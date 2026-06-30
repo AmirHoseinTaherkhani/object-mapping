@@ -178,6 +178,8 @@ def parse_args():
                    help="Print per-track counting decisions to terminal for diagnosis")
     p.add_argument("--max-frames", type=int, default=0,
                    help="Stop after this many frames (0 = run to end; useful for benchmarking)")
+    p.add_argument("--roi", default=None,
+                   help="Path to ROI JSON file, or 'none' to use full frame (default: counting_experiment/roi.json)")
     return p.parse_args()
 
 
@@ -195,7 +197,13 @@ def main():
             "Run  python export_coreml.py  first to generate the .mlpackage file."
         )
 
-    roi = load_roi(ROI_FILE)
+    if args.roi and args.roi.lower() == "none":
+        roi = None
+        print("ROI: full frame (--roi none)")
+    elif args.roi:
+        roi = load_roi(Path(args.roi))
+    else:
+        roi = load_roi(ROI_FILE)
 
     print(f"Loading model: {weights.name} …")
     model = YOLO(str(weights))
