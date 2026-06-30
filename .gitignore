@@ -42,6 +42,7 @@ counting_experiment/roi.json
 # Real-time inference output videos
 realtime_inference/output_coreml.mp4
 realtime_inference/output_tensorrt.mp4
+realtime_inference/outputs/
 
 # Loose weights at root (use models/weights/ instead)
 /*.pt

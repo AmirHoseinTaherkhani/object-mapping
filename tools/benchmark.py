@@ -31,6 +31,10 @@ def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str,
     if roi:
         cmd += ["--roi", roi]
 
+    src_stem = Path(source).stem
+    out_path = ROOT / "realtime_inference" / "outputs" / src_stem / f"skip_n_{skip_n}.mp4"
+    cmd += ["--output", str(out_path)]
+
     t0 = time.perf_counter()
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
     elapsed = time.perf_counter() - t0

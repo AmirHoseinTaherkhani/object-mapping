@@ -36,7 +36,7 @@ ROOT     = HERE.parent
 DEFAULT_WEIGHTS = ROOT / "models/weights/best_v3_merged.mlpackage"
 DEFAULT_VIDEO   = ROOT / "Demo/ANMR0006.mp4"
 ROI_FILE        = ROOT / "counting_experiment/roi.json"
-OUT_VID         = HERE / "output_coreml.mp4"
+OUTPUTS_DIR     = HERE / "outputs"
 
 # ── counting constants ─────────────────────────────────────────────────────────
 CLASS_PERSON  = 0
@@ -180,6 +180,8 @@ def parse_args():
                    help="Stop after this many frames (0 = run to end; useful for benchmarking)")
     p.add_argument("--roi", default=None,
                    help="Path to ROI JSON file, or 'none' to use full frame (default: counting_experiment/roi.json)")
+    p.add_argument("--output", default=None,
+                   help="Output video path. Default: realtime_inference/outputs/<video_stem>/skip_n_<N>.mp4")
     return p.parse_args()
 
 
@@ -223,8 +225,16 @@ def main():
     tracker = ByteTrack(frame_rate=int(cap.fps), track_buffer=600, track_thresh=0.15)
     print(f"Tracker ready. YOLO every {args.skip_n} frame(s).\n")
 
+    if args.output:
+        out_path = Path(args.output)
+    else:
+        src_stem = Path(args.source).stem if args.source != "0" else "webcam"
+        out_path = OUTPUTS_DIR / src_stem / f"skip_n_{args.skip_n}.mp4"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
-    writer = cv2.VideoWriter(str(OUT_VID), fourcc, cap.fps, (cap.width, cap.height))
+    writer = cv2.VideoWriter(str(out_path), fourcc, cap.fps, (cap.width, cap.height))
+    print(f"Output: {out_path}")
 
     if not args.no_display:
         cv2.namedWindow("CoreML — Real-time Counting", cv2.WINDOW_NORMAL)
