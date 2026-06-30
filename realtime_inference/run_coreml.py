@@ -9,10 +9,10 @@ Optimisations applied:
 Run export_coreml.py once first to produce the .mlpackage file.
 
 Usage:
-    python run_coreml.py                              # default video, skip-n=2
+    python run_coreml.py                              # default video, skip-n=1
     python run_coreml.py --source 0                   # live webcam
     python run_coreml.py --source rtsp://...          # IP camera
-    python run_coreml.py --skip-n 3 --no-display      # headless, skip 2/3 frames
+    python run_coreml.py --skip-n 2 --no-display      # headless, legacy skip-2 mode
     python run_coreml.py --weights path/to/model.mlpackage
 """
 
@@ -167,8 +167,8 @@ def parse_args():
                    help="Path to .mlpackage (default: models/weights/best_v3_merged.mlpackage)")
     p.add_argument("--source",     default=str(DEFAULT_VIDEO),
                    help="Video path, '0' for webcam, or rtsp:// URL")
-    p.add_argument("--skip-n",     type=int, default=2,
-                   help="Run YOLO every N frames; tracker Kalman-predicts the rest (default 2)")
+    p.add_argument("--skip-n",     type=int, default=1,
+                   help="Run YOLO every N frames; tracker Kalman-predicts the rest (default 1)")
     p.add_argument("--conf-car",   type=float, default=0.15,
                    help="CoreML outputs cars at 0.15-0.37 conf; 0.15 keeps detections stable across frames")
     p.add_argument("--conf-person",type=float, default=0.45)
@@ -176,6 +176,8 @@ def parse_args():
                    help="Headless mode — skip imshow, still write output video")
     p.add_argument("--verbose", action="store_true",
                    help="Print per-track counting decisions to terminal for diagnosis")
+    p.add_argument("--max-frames", type=int, default=0,
+                   help="Stop after this many frames (0 = run to end; useful for benchmarking)")
     return p.parse_args()
 
 
@@ -417,6 +419,8 @@ def main():
         frame_idx += 1
         if frame_idx % 600 == 0:
             print(f"  frame {frame_idx}  fps={live_fps:.1f}  cars={car_count}  people={person_count}")
+        if args.max_frames and frame_idx >= args.max_frames:
+            break
 
     cap.release()
     writer.release()
