@@ -1,0 +1,31 @@
+# Pinned requirements for Docker image reproducibility.
+# Uses opencv-python-headless to avoid X11 deps in the container.
+
+torch==2.0.1
+torchvision==0.15.2
+ultralytics==8.4.55
+boxmot>=10.0.0
+opencv-python-headless==4.8.0.76
+numpy==1.24.3
+pandas==2.0.3
+scipy==1.10.1
+matplotlib==3.7.5
+pillow==10.4.0
+seaborn==0.13.2
+pyyaml==6.0.2
+tqdm==4.67.1
+requests==2.32.3
+psutil==7.0.0
+coloredlogs==15.0.1
+
+# Web framework
+streamlit==1.28.1
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+streamlit-drawable-canvas>=0.9.0
+
+# Standard
+jinja2>=3.0.0
+protobuf>=3.20.0
+certifi

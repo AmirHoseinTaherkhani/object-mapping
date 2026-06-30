@@ -1,6 +1,6 @@
-# Object Mapping — Overhead Surveillance Tracking & Counting
+# ObjectMapping — Overhead Surveillance Counter
 
-A computer vision pipeline for detecting, tracking, and counting vehicles and pedestrians in fixed overhead surveillance video, built on YOLOv8s fine-tuned for this camera domain.
+A computer vision pipeline for detecting, tracking, and counting vehicles and pedestrians in fixed overhead surveillance video. Built on a fine-tuned YOLOv8s model with ByteTrack and a ghost-zone deduplication layer to eliminate double-counts.
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,262 +11,148 @@ A computer vision pipeline for detecting, tracking, and counting vehicles and pe
 
 | Component | Detail |
 |---|---|
-| Detector | YOLOv8s — 2 classes: `person` (0), `car` (1) |
-| Model weights | `models/weights/best_v3_merged.pt` |
-| Tracker | ByteTrack (BoxMOT) |
+| Detector | YOLOv8s fine-tuned on this camera domain — 2 classes: `person` (0), `car` (1) |
+| Weights | `models/weights/best_v3_merged.pt` (PyTorch) / `best_v3_merged.mlpackage` (CoreML) |
+| Tracker | ByteTrack (BoxMOT) — pure IoU + Kalman, no appearance model |
 | Training platform | UNH Premise HPC — NVIDIA A100 80 GB via SLURM |
-| Input video | 1920×1080 @ 60 fps fixed overhead intersection camera |
+| Input | 1920 × 1080 @ 60 fps fixed overhead intersection camera |
+
+### Model performance
+
+Fine-tuned on a merged dataset (~14 000 images), 50 epochs on an A100:
+
+| Class | mAP@0.5 |
+|---|---|
+| Person | 0.985 |
+| Car | 0.619 |
+| **Overall** | **0.802** |
+
+Tracking stability (30-second clip, `best_v3_merged.pt` + ByteTrack):
+
+| Metric | Baseline | Fine-tuned |
+|---|---|---|
+| ID switches | 30 | 3 |
+| Unique track IDs | 37 | 5 |
+| Detections / frame | 6.0 | 2.5 |
 
 ---
 
 ## Repository Structure
 
 ```
-├── counting_experiment/        # Vehicle & person counting pipeline
-│   ├── select_roi.py           # Interactive ROI polygon selector
+├── counting_experiment/        # Reference baseline (PyTorch, every frame)
 │   ├── count_objects.py        # Main counting script
-│   ├── check_counts.py         # Output verification replay
-│   └── README.md               # Detailed docs and problem-solving notes
+│   ├── select_roi.py           # Interactive ROI polygon selector
+│   ├── check_counts.py         # Frame-by-frame count verification replay
+│   └── README.md
 │
 ├── realtime_inference/         # Optimised pipelines for demo / live use
-│   ├── export_coreml.py        # Export .pt → CoreML .mlpackage (Mac)
-│   ├── export_tensorrt.py      # Export .pt → TensorRT .engine (NVIDIA)
-│   ├── export_tensorrt.slurm   # Build TRT engine on Premise A100
-│   ├── run_coreml.py           # Live counting — Apple Neural Engine
-│   ├── run_tensorrt.py         # Live counting — TensorRT FP16
-│   └── README.md               # Step-by-step and argument reference
+│   ├── run_coreml.py           # Apple Neural Engine — primary demo pipeline
+│   ├── run_tensorrt.py         # TensorRT FP16 — NVIDIA GPU path
+│   ├── export_coreml.py        # Export .pt → CoreML .mlpackage
+│   ├── export_tensorrt.py      # Export .pt → TensorRT .engine
+│   ├── export_tensorrt.slurm   # Build engine on Premise A100
+│   └── README.md
 │
-├── src/object_detection/
-│   └── training/               # Training script variants
+├── tools/                      # Data preparation, training, and evaluation scripts
+│   ├── finetune_on_camera.py   # Fine-tuning entry point (Mac + HPC)
+│   ├── merge_datasets.py       # Merge and remap multiple source datasets
+│   ├── prepare_dataset.py      # Split merged dataset into train/val/test
+│   ├── threshold_grid_search.py # Grid search over per-class conf thresholds
+│   ├── test_bytetrack.py       # ID-switch evaluation on a video clip
+│   ├── extract_labeling_frames.py  # Sample frames for manual labeling
+│   ├── autolabel_with_dino.py  # Auto-label with Grounding DINO
+│   ├── compare_models.py       # Side-by-side model performance comparison
+│   ├── compare_improvements.py # Chart improvements across training runs
+│   ├── sahi_inference.py       # SAHI sliced inference for small objects
+│   ├── make_comparison_video.py # Generate comparison videos
+│   └── make_visdrone_video.py  # VisDrone dataset visualisation
 │
-├── finetune_on_camera.py       # Fine-tuning entry point (Mac + HPC)
-├── prepare_dataset.py          # Split merged dataset into train/val/test
-├── merge_datasets.py           # Merge & remap multiple source datasets
-├── test_old_bytetrack.py       # ID-switch evaluation on a video clip
-├── threshold_grid_search.py    # Grid search over per-class conf thresholds
+├── hpc/                        # SLURM job scripts for UNH Premise A100
+│   ├── train.slurm             # Fine-tune (12 h, 1× A100)
+│   ├── inference.slurm         # Full-video inference (1 h)
+│   └── grid_search.slurm       # Threshold grid search (2 h)
 │
-├── train_hpc.slurm             # SLURM job: fine-tuning on A100
-├── inference_hpc.slurm         # SLURM job: full-video inference
-└── grid_search_hpc.slurm       # SLURM job: threshold grid search
+├── src/                        # Webapp and coordinate-mapping library
+│   ├── object_detection/       # Python package (inference, tracking, mapping, API)
+│   ├── webapp/                 # Streamlit frontend
+│   ├── scripts/                # Entry points (run_webapp.py, run_realtime_mapping.py)
+│   └── demo.ipynb              # Interactive walkthrough notebook
+│
+├── configs/                    # YAML configuration files
+│   ├── training/               # Dataset configs for YOLO training
+│   ├── model/                  # Detection model config
+│   ├── ui/                     # Streamlit UI config
+│   └── visualization/          # Real-time canvas config
+│
+├── experiments/
+│   └── train_results/          # Training curves and confusion matrices
+│
+├── models/
+│   ├── weights/                # Model weights — DVC-managed, not committed
+│   └── exports/                # Exported engines / packages
+│
+├── requirements.txt            # Minimal local-dev dependencies
+├── requirements/
+│   ├── base.txt                # Core ML dependencies
+│   ├── prod.txt                # + FastAPI and Streamlit
+│   ├── docker.txt              # Pinned, headless OpenCV (for Docker image)
+│   └── test.txt                # + pytest
+├── Dockerfile                  # Container for the Streamlit webapp
+├── docker-compose.yml
+└── Data.dvc                    # DVC pointer to training data
 ```
 
 ---
 
-## Setup
+## Quick Start
+
+### 1 — Install dependencies
 
 ```bash
 conda create -n objectmapping python=3.9
 conda activate objectmapping
-pip install ultralytics boxmot opencv-python-headless numpy
+pip install -r requirements.txt
 ```
 
 Pull model weights via DVC:
+
 ```bash
 dvc pull
 ```
 
----
-
-## 1 — Dataset Preparation
-
-### Merge source datasets
-
-Combines 5 vehicle datasets and 2 pedestrian datasets with your labelled camera frames. Remaps all class IDs to `person=0, car=1`, caps large datasets at 2,000 images to prevent class imbalance, and oversamples pedestrian data to reach a ~2:1 car:person ratio.
-
-```bash
-python merge_datasets.py
-```
-
-Output: `labeling_data/merged/` (~6,600 images, 2.2:1 car:person ratio)
-
----
-
-### Prepare train / val / test split
-
-Takes the merged (or original) image pool and splits it into `train/`, `val/`, and `test/` folders with the `data.yaml` config file YOLO expects.
-
-```bash
-# Use the merged multi-source dataset (recommended)
-python prepare_dataset.py --source merged
-
-# Use only the original hand-labelled camera frames
-python prepare_dataset.py --source original
-```
-
-| Argument | Values | Default | Description |
-|---|---|---|---|
-| `--source` | `merged`, `original` | `merged` | Which image pool to split |
-
-Output: `labeling_data/data.yaml` + `train/`, `val/`, `test/` subfolders
-
----
-
-## 2 — Training
-
-### Fine-tune locally (Mac / CPU / MPS)
-
-```bash
-python finetune_on_camera.py
-```
-
-Resumes from `models/weights/last_epoch3.pt` by default, trains for 50 epochs on the merged dataset.
-
-### Fine-tune with a different base model
-
-```bash
-python finetune_on_camera.py --base best_v3_merged.pt
-```
-
-### Use the original labelled frames only
-
-```bash
-python finetune_on_camera.py --source original
-```
-
-| Argument | Values | Default | Description |
-|---|---|---|---|
-| `--source` | `merged`, `original` | `merged` | Dataset pool to train on |
-| `--base` | any `.pt` filename in `models/weights/` | `last_epoch3.pt` | Starting weights |
-| `--hpc` | flag | off | CUDA/HPC mode: `batch=32`, `workers=4`, `amp=True` |
-
-Checkpoints are saved to `runs/detect/yolov8s_merged_v2/weights/` after every epoch.
-
----
-
-### Fine-tune on HPC (UNH Premise — A100)
-
-```bash
-# From login node, after syncing files:
-sbatch train_hpc.slurm
-```
-
-Resources allocated: 1× A100 80 GB, 4 CPUs, 32 GB RAM, 12-hour wall time.
-Logs: `logs/train_<job_id>.out` / `.err`
-
-Monitor the job:
-```bash
-squeue -u $USER                  # show running jobs
-tail -f logs/train_<job_id>.out  # stream live output
-scancel <job_id>                  # cancel if needed
-```
-
----
-
-## 3 — Evaluation
-
-### ID-switch test (30-second clip)
-
-Runs the model + ByteTrack on the first 30 seconds of the video and counts track ID switches as a stability metric. Lower = better.
-
-```bash
-python test_old_bytetrack.py models/weights/best_v3_merged.pt
-```
-
-### ID-switch test on the full video
-
-```bash
-python test_old_bytetrack.py models/weights/best_v3_merged.pt --full
-```
-
-### Adjust per-class confidence thresholds
-
-```bash
-python test_old_bytetrack.py models/weights/best_v3_merged.pt \
-  --conf-car 0.50 --conf-person 0.45
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `weights` | *(positional)* | Path to `.pt` weights file |
-| `--full` | off | Run entire video instead of 30-second clip |
-| `--conf-car` | `0.40` | Confidence threshold for car class |
-| `--conf-person` | `0.50` | Confidence threshold for person class |
-
-Output video saved to `outputs/model_comparison/<weights_stem>_car<cc>_p<cp>_<30s|full>.mp4`
-
----
-
-### Run full-video inference on HPC
-
-```bash
-sbatch inference_hpc.slurm
-```
-
-Resources: 1× A100, 2 CPUs, 16 GB RAM, 1-hour wall time.
-Runs `best_v3_merged.pt` with `conf-car=0.50`, `conf-person=0.50` on the full video.
-Logs: `logs/inference_<job_id>.out`
-
----
-
-## 4 — Threshold Tuning
-
-### Grid search (local)
-
-Tests every combination of 7 car thresholds × 5 person thresholds on a 30-second clip and scores each by tracking stability. Saves a ranked CSV.
-
-```bash
-python threshold_grid_search.py
-```
-
-### Grid search on a longer clip
-
-```bash
-python threshold_grid_search.py --video-seconds 60
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `--video-seconds` | `30` | Length of clip used per trial |
-
-Output: `outputs/threshold_search.csv` — columns: `conf_car`, `conf_person`, `total_unique_ids`, `id_switches`, `mean_dets_per_frame`, `persistent_ratio`, `score`
-
-### Grid search on HPC
-
-```bash
-sbatch grid_search_hpc.slurm
-```
-
-Resources: 1× A100, 2 CPUs, 16 GB RAM, 2-hour wall time.
-Logs: `logs/grid_<job_id>.out`
-
----
-
-## 5 — Counting Pipeline
-
-Full documentation: [counting_experiment/README.md](counting_experiment/README.md)
-
-### Step 1 — Define the counting zone
-
-Opens the first video frame. Click to place polygon points, press **Enter** to save, **Esc** to reset.
+### 2 — Define the counting zone
 
 ```bash
 cd counting_experiment
-python select_roi.py
+python select_roi.py       # click polygon on first frame, press Enter to save
 ```
 
-Output: `counting_experiment/roi.json` — loaded automatically by `count_objects.py`
+### 3 — Run the counter (reference baseline)
+
+```bash
+python counting_experiment/count_objects.py
+python counting_experiment/count_objects.py --no-display   # headless
+```
+
+### 4 — Run the real-time demo (Apple Silicon)
+
+```bash
+# Export once
+python realtime_inference/export_coreml.py
+
+# Run
+python realtime_inference/run_coreml.py
+python realtime_inference/run_coreml.py --no-display
+```
+
+See [realtime_inference/README.md](realtime_inference/README.md) for the full argument reference, NVIDIA/TensorRT instructions, and frame-skip guide.
 
 ---
 
-### Step 2 — Run the counter
+## Counting Pipeline
 
-```bash
-python count_objects.py
-```
-
-Runs with live display. Press **Q** to stop early.
-
-### Adjust thresholds
-
-```bash
-python count_objects.py --conf-car 0.50 --conf-person 0.45
-```
-
-### Run headlessly (no window — for HPC or background jobs)
-
-```bash
-python count_objects.py --no-display
-```
+Full documentation: [counting_experiment/README.md](counting_experiment/README.md)
 
 | Argument | Default | Description |
 |---|---|---|
@@ -275,160 +161,115 @@ python count_objects.py --no-display
 | `--no-display` | off | Skip `cv2.imshow`, still save output video |
 
 Output video: `counting_experiment/output_counted.mp4`
-Final summary printed to terminal: total cars, total people, frames processed.
 
 ---
 
-### Step 3 — Verify counts (optional)
+## Real-time Inference
 
-Replays the output video and prints a timestamped log of every moment a count increments, so you can spot double-counts or missed entries.
+Two hardware-accelerated paths:
 
-```bash
-python check_counts.py
+| Scenario | Script | Expected FPS |
+|---|---|---|
+| Mac (Apple Silicon) | `realtime_inference/run_coreml.py` | 30–45 fps |
+| NVIDIA GPU | `realtime_inference/run_tensorrt.py` | 60+ fps |
 
-# Or point at a specific video
-python check_counts.py path/to/output_counted.mp4
-```
-
----
-
-## 6 — Real-time Inference (Demo)
-
-Full documentation: [realtime_inference/README.md](realtime_inference/README.md)
-
-Two hardware paths are provided. Pick the one that matches the demo machine.
-
-| Scenario | Export script | Run script | Expected FPS |
-|---|---|---|---|
-| Mac (Apple Silicon) | `export_coreml.py` | `run_coreml.py` | 30–45 fps |
-| NVIDIA GPU | `export_tensorrt.py` | `run_tensorrt.py` | 60+ fps |
-
-Both apply the same three speedups: hardware-accelerated model format, async video capture, and configurable frame skipping.
+Both apply hardware-accelerated model format, async capture, and frame skipping. Full docs: [realtime_inference/README.md](realtime_inference/README.md)
 
 ---
 
-### CoreML — Mac (Apple Silicon)
+## Training
 
-**Step 1 — Export once:**
-```bash
-cd realtime_inference
-python export_coreml.py
-# Produces: models/weights/best_v3_merged.mlpackage
-```
+### Fine-tune locally
 
-**Step 2 — Run:**
 ```bash
-python run_coreml.py                              # recorded video
-python run_coreml.py --source 0                   # live webcam
-python run_coreml.py --source rtsp://...          # IP camera
-python run_coreml.py --no-display                 # headless
-python run_coreml.py --skip-n 3                   # skip more frames (slower machine)
+python tools/finetune_on_camera.py
+python tools/finetune_on_camera.py --base best_v3_merged.pt
+python tools/finetune_on_camera.py --source original    # original labelled frames only
 ```
 
 | Argument | Default | Description |
 |---|---|---|
-| `--weights` | `models/weights/best_v3_merged.mlpackage` | CoreML package path |
-| `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
-| `--skip-n` | `2` | Run YOLO every N frames; Kalman predicts the rest |
-| `--conf-car` | `0.15` | CoreML outputs cars at 0.15–0.37; 0.15 keeps detections stable |
-| `--conf-person` | `0.45` | Confidence threshold for persons |
-| `--no-display` | off | Headless — skip `imshow`, still write output video |
-| `--verbose` | off | Print per-track counting decisions for diagnosis |
+| `--source` | `merged` | Dataset pool (`merged` or `original`) |
+| `--base` | `last_epoch3.pt` | Starting weights (filename in `models/weights/`) |
+| `--hpc` | off | CUDA/HPC mode: `batch=32`, `workers=4`, `amp=True` |
+
+### Fine-tune on HPC (UNH Premise)
+
+```bash
+sbatch hpc/train.slurm       # 12 h, 1× A100 80 GB
+```
+
+Logs: `logs/train_<job_id>.out`
 
 ---
 
-### TensorRT — NVIDIA GPU
+## Dataset Preparation
 
-> **Important:** The `.engine` file must be built on the same GPU model that will run the demo. Build it on the demo machine, or on the same GPU architecture.
-
-**Step 1 — Export on the demo machine:**
 ```bash
-cd realtime_inference
-python export_tensorrt.py          # FP16 by default (fastest)
-python export_tensorrt.py --fp32   # FP32 fallback if accuracy degrades
-# Produces: models/weights/best_v3_merged.engine
-```
+# Merge multiple source datasets (remaps all classes to person=0, car=1)
+python tools/merge_datasets.py
 
-**Or build on Premise A100 and transfer back:**
-```bash
-sbatch export_tensorrt.slurm
-# After job completes:
-rsync -av at1293@premise.sr.unh.edu:~/objmap/models/weights/best_v3_merged.engine \
-          ./models/weights/
+# Split into train/val/test
+python tools/prepare_dataset.py --source merged     # recommended
+python tools/prepare_dataset.py --source original   # original frames only
 ```
-
-**Step 2 — Run:**
-```bash
-python run_tensorrt.py                            # recorded video
-python run_tensorrt.py --source 0                 # live webcam
-python run_tensorrt.py --source rtsp://...        # IP camera
-python run_tensorrt.py --no-display               # headless
-python run_tensorrt.py --device 1                 # second GPU
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `--weights` | `models/weights/best_v3_merged.engine` | TensorRT engine path |
-| `--source` | `Demo/ANMR0006.mp4` | Video file, `0` for webcam, `rtsp://` URL |
-| `--device` | `0` | CUDA device index |
-| `--skip-n` | `2` | Run YOLO every N frames; Kalman predicts the rest |
-| `--conf-car` | `0.50` | Confidence threshold for cars |
-| `--conf-person` | `0.45` | Confidence threshold for persons |
-| `--no-display` | off | Headless — skip `imshow`, still write output video |
 
 ---
 
-### Frame-skip guide
+## Evaluation
 
-ByteTrack's Kalman filter keeps tracks smooth between detection frames — increasing `--skip-n` does not cause jitter on screen.
+### ID-switch test
 
-| Input FPS | `--skip-n` | Effective detection rate | When to use |
-|---|---|---|---|
-| 60 | 2 | 30 fps | Default — smooth tracking |
-| 60 | 3 | 20 fps | Marginal hardware |
-| 30 | 2 | 15 fps | Minimum comfortable tracking |
-| 30 | 1 | 30 fps | No skipping — maximum accuracy |
+```bash
+python tools/test_bytetrack.py models/weights/best_v3_merged.pt
+python tools/test_bytetrack.py models/weights/best_v3_merged.pt --full
+```
+
+### Threshold grid search
+
+```bash
+python tools/threshold_grid_search.py             # local (30-second clip)
+sbatch hpc/grid_search.slurm                      # HPC (2 h)
+```
+
+Output: `outputs/threshold_search.csv`
+
+### Full-video inference on HPC
+
+```bash
+sbatch hpc/inference.slurm
+```
 
 ---
 
-## 8 — Syncing Files to HPC
+## Webapp
+
+A Streamlit interface for ground-truth annotation and real-time coordinate mapping:
 
 ```bash
-# Push code + weights to Premise
-bash scripts/sync_weights.sh
+pip install -r requirements/prod.txt
 
-# Or manually with rsync
+# Run directly
+python src/scripts/run_webapp.py
+
+# Or via Docker
+docker-compose up
+```
+
+The webapp provides:
+- Interactive point selection for homography calibration
+- Side-by-side video + 2D map visualisation with object trails
+- CSV export of trajectories
+
+---
+
+## Syncing to HPC
+
+```bash
 rsync -av --progress \
   --exclude='newDatasets/' --exclude='outputs/' --exclude='*.mp4' \
   ./ at1293@premise.sr.unh.edu:~/objmap/
-
-# Pull results back to Mac
-rsync -av --progress \
-  at1293@premise.sr.unh.edu:~/objmap/outputs/model_comparison/ \
-  ./outputs/model_comparison/
 ```
-
----
-
-## Model Performance
-
-Fine-tuned on merged dataset (~14,000 images), 50 epochs on A100:
-
-| Class | mAP@0.5 |
-|---|---|
-| Person | 0.985 |
-| Car | 0.619 |
-| **Overall** | **0.802** |
-
-**Tracking stability** (30-second clip, `best_v3_merged.pt` + ByteTrack):
-
-| Metric | Baseline model | Fine-tuned |
-|---|---|---|
-| ID switches | 30 | 3 |
-| Unique track IDs | 37 | 5 |
-| Detections / frame | 6.0 | 2.5 |
-
-The 3 remaining switches are genuine occlusion events (cars passing behind trees).
 
 ---
 

@@ -8,51 +8,55 @@ env/
 venv/
 .env
 
-# YOLOv8 runs and inference outputs
+# YOLOv8 training runs
 runs/
-outputs/predictions/
 
-# Model weights (large binaries)
+# Model weights (large binaries — managed via DVC)
 models/weights/*.pt
+models/weights/*.mlpackage
+models/weights/*.engine
 cloud_weights/
 
-# Training data and labeling (large, not for version control)
+# Training data and labeling (large)
 labeling_data/
 datasets.zip
+newDatasets/
 
-# Demo videos and generated outputs
+# Demo video (large)
 Demo/
+
+# Generated outputs
+outputs/predictions/
 outputs/*.mp4
 outputs/*.csv
 outputs/*.avi
 outputs/*.json
 outputs/model_comparison/
+outputs/mapping/
 src/outputs/
 
-# Datasets (large)
-newDatasets/
-
-# Root-level loose model weights
-/*.pt
-
-# Counting experiment outputs (user-specific, not for version control)
+# Counting experiment user-specific outputs
 counting_experiment/output_counted.mp4
 counting_experiment/roi.json
 
-# Real-time inference outputs and exported model formats
+# Real-time inference output videos
 realtime_inference/output_coreml.mp4
 realtime_inference/output_tensorrt.mp4
-models/weights/*.mlpackage
-models/weights/*.engine
+
+# Loose weights at root (use models/weights/ instead)
+/*.pt
 
 # MLflow
 mlruns/
 mlflow.db
 
-# Notebooks
+# Notebooks (checked in only under src/)
 notebooks/
 
-# Large files (but allow .dvc files)
+# HPC job logs
+logs/
+
+# Large files (DVC-managed)
 /Data
 /weights
 /train3

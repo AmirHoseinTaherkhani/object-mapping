@@ -78,7 +78,7 @@ python export_tensorrt.py
 **Option B — build on the Premise A100, then transfer:**
 ```bash
 # On Premise login node:
-sbatch export_tensorrt.slurm
+sbatch realtime_inference/export_tensorrt.slurm
 # Check logs/trt_export_<job_id>.out for completion
 
 # Pull the engine back to Mac:
