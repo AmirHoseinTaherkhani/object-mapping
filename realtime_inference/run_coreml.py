@@ -440,19 +440,22 @@ def main():
         if args.max_frames and frame_idx >= args.max_frames:
             break
 
-    cap.release()
-    writer.release()
-    if not args.no_display:
-        cv2.destroyAllWindows()
-
     print(f"\n{'='*45}")
     print("FINAL COUNTS  (CoreML + ByteTrack)")
     print(f"{'='*45}")
     print(f"Cars   : {car_count}")
     print(f"People : {person_count}")
     print(f"Frames : {frame_idx}")
-    print(f"Output : {OUT_VID}")
+    print(f"Output : {out_path}")
     print(f"{'='*45}")
+
+    cap.release()
+    try:
+        writer.release()
+    except Exception as e:
+        print(f"Warning: VideoWriter.release() failed: {e}")
+    if not args.no_display:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

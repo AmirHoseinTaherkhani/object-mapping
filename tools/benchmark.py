@@ -60,7 +60,7 @@ def run_pipeline(source: str, skip_n: int, max_frames: int, weights: str,
         "avg_fps": avg_fps,
         "wall_s":  elapsed,
         "ok":      result.returncode == 0,
-        "stderr":  result.stderr[-400:] if result.returncode != 0 else "",
+        "stderr":  result.stderr[-800:] if result.returncode != 0 else "",
     }
 
 
