@@ -89,20 +89,25 @@ def main() -> None:
                    help="CoreML weights path")
     args = p.parse_args()
 
-    # (source_path, label, roi)
-    # roi="none" disables ROI masking for videos that don't use the custom ROI polygon
-    videos = [
-        (str(ROOT / "Demo/ANMR0006.mp4"),
-         "Custom surveillance (ANMR0006)", ""),
-        (str(ROOT / "Demo/Videos/13092338_2160_3840_30fps.mp4"),
-         "Overhead city street (76s)", "none"),
-        (str(ROOT / "Demo/Videos/14414218_1080_1920_60fps.mp4"),
-         "Elevated highway (16s)", "none"),
-        (str(ROOT / "Demo/Videos/14508550_2160_3840_60fps.mp4"),
-         "Bridge overhead (11s)", "none"),
-        (str(ROOT / "Demo/benchmark_stmarc.avi"),
-         "UrbanTracker St-Marc (66s)", "none"),
-    ]
+    # Custom surveillance video always runs first with its proper ROI polygon.
+    # Every file in Demo/Videos/ is then picked up automatically — no edits needed
+    # when new videos are added to that folder.
+    VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+    videos_dir = ROOT / "Demo" / "Videos"
+
+    videos = []
+    custom = ROOT / "Demo" / "ANMR0006.mp4"
+    if custom.exists():
+        videos.append((str(custom), "Custom surveillance (ANMR0006)", ""))
+
+    if videos_dir.is_dir():
+        for p in sorted(videos_dir.iterdir()):
+            if p.suffix.lower() in VIDEO_EXTS:
+                videos.append((str(p), p.name, "none"))
+
+    stmarc = ROOT / "Demo" / "benchmark_stmarc.avi"
+    if stmarc.exists():
+        videos.append((str(stmarc), "UrbanTracker St-Marc", "none"))
 
     print(f"\nBenchmark — skip-n: {args.skip_n}  max-frames: {args.max_frames}")
     print(f"Weights: {Path(args.weights).name}")
