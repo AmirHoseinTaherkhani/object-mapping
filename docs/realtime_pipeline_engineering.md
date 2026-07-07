@@ -44,7 +44,7 @@ After the export was fixed, car detections reappeared but were almost
 immediately lost again.  Investigation with `--verbose` revealed that ByteTrack
 was creating no new car tracks.
 
-**Root cause:** CoreML's quantisation changes the model's output scale.
+**Root cause:** CoreML's quantization changes the model's output scale.
 PyTorch produces car confidence scores in the 0.45–0.85 range.  The same model
 exported to CoreML produces car scores in the 0.15–0.37 range.  Person scores
 are less affected (they stay near 0.90).

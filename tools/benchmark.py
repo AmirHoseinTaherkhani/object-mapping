@@ -94,7 +94,7 @@ def main() -> None:
     # Every file in Demo/Videos/ is then picked up automatically — no edits needed
     # when new videos are added to that folder.
     VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
-    videos_dir = ROOT / "Demo" / "Videos"
+    videos_dir = ROOT / "Demo" / "videos"   # lowercase — actual directory name
 
     videos = []
     custom = ROOT / "Demo" / "ANMR0006.mp4"

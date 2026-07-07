@@ -70,6 +70,17 @@ logs/
 .claude/*
 !.claude/CLAUDE.md
 
+# YOLO11 experiment outputs (large — videos and fine-tuned weights)
+experiments/yolo11_experiments/finetuned/
+experiments/yolo11_experiments/tracking_inference/
+experiments/yolo11_experiments/videos/
+experiments/simple_test/
+experiments/video_test/
+experiments/yolo11_experiments/results/*.jpeg
+experiments/yolo11_experiments/results/*.jpg
+experiments/yolo11_experiments/results/*.mp4
+experiments/yolo11_experiments/results/*.py
+
 # Misc
 .DS_Store
 *.log

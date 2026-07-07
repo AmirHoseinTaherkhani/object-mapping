@@ -1,0 +1,141 @@
+{
+  "model": "yolo11s",
+  "mode": "pretrained",
+  "weights": "/Users/at1293/Desktop/ObjectMapping-from-github/models/weights/yolo11s.pt",
+  "status": "ok",
+  "val_metrics": null,
+  "videos": [
+    {
+      "video": "ANMR0006",
+      "cars": 0,
+      "people": 1,
+      "frames": 30,
+      "wall_s": 4.6,
+      "fps": 6.5,
+      "ok": true,
+      "stderr": "",
+      "label": "ANMR0006"
+    },
+    {
+      "video": "12529314_1080_1920_60fps",
+      "cars": 1,
+      "people": 3,
+      "frames": 30,
+      "wall_s": 4.4,
+      "fps": 6.7,
+      "ok": true,
+      "stderr": "",
+      "label": "12529314_1080_1920_60fps"
+    },
+    {
+      "video": "12599250_3840_2160_30fps",
+      "cars": 5,
+      "people": 1,
+      "frames": 30,
+      "wall_s": 8.4,
+      "fps": 3.6,
+      "ok": true,
+      "stderr": "",
+      "label": "12599250_3840_2160_30fps"
+    },
+    {
+      "video": "13092338_2160_3840_30fps",
+      "cars": 10,
+      "people": 0,
+      "frames": 30,
+      "wall_s": 7.4,
+      "fps": 4.1,
+      "ok": true,
+      "stderr": "",
+      "label": "13092338_2160_3840_30fps"
+    },
+    {
+      "video": "14414218_1080_1920_60fps",
+      "cars": 16,
+      "people": 0,
+      "frames": 30,
+      "wall_s": 4.7,
+      "fps": 6.3,
+      "ok": true,
+      "stderr": "",
+      "label": "14414218_1080_1920_60fps"
+    },
+    {
+      "video": "14508550_2160_3840_60fps",
+      "cars": 14,
+      "people": 0,
+      "frames": 30,
+      "wall_s": 5.9,
+      "fps": 5.1,
+      "ok": true,
+      "stderr": "",
+      "label": "14508550_2160_3840_60fps"
+    },
+    {
+      "video": "14519666_2160_3840_60fps",
+      "cars": 2,
+      "people": 6,
+      "frames": 30,
+      "wall_s": 6.2,
+      "fps": 4.8,
+      "ok": true,
+      "stderr": "",
+      "label": "14519666_2160_3840_60fps"
+    },
+    {
+      "video": "14554257_2160_3840_60fps",
+      "cars": 0,
+      "people": 4,
+      "frames": 30,
+      "wall_s": 6.9,
+      "fps": 4.3,
+      "ok": true,
+      "stderr": "",
+      "label": "14554257_2160_3840_60fps"
+    },
+    {
+      "video": "14560754_3840_2160_30fps",
+      "cars": 0,
+      "people": 10,
+      "frames": 30,
+      "wall_s": 6.8,
+      "fps": 4.4,
+      "ok": true,
+      "stderr": "",
+      "label": "14560754_3840_2160_30fps"
+    },
+    {
+      "video": "14634622_1920_1080_24fps",
+      "cars": 1,
+      "people": 7,
+      "frames": 30,
+      "wall_s": 4.3,
+      "fps": 6.9,
+      "ok": true,
+      "stderr": "",
+      "label": "14634622_1920_1080_24fps"
+    },
+    {
+      "video": "9003388-hd_1920_1080_25fps",
+      "cars": 0,
+      "people": 5,
+      "frames": 30,
+      "wall_s": 4.5,
+      "fps": 6.6,
+      "ok": true,
+      "stderr": "",
+      "label": "9003388-hd_1920_1080_25fps"
+    },
+    {
+      "video": "benchmark_stmarc",
+      "cars": 7,
+      "people": 2,
+      "frames": 30,
+      "wall_s": 5.3,
+      "fps": 5.6,
+      "ok": true,
+      "stderr": "",
+      "label": "stmarc"
+    }
+  ]
+}

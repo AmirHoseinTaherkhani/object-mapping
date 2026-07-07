@@ -1,0 +1,146 @@
+{
+  "model": "yolo11m",
+  "mode": "finetuned",
+  "weights": "/Users/at1293/Desktop/ObjectMapping-from-github/experiments/yolo11_experiments/finetuned/yolo11m/train/weights/best.pt",
+  "status": "ok",
+  "val_metrics": {
+    "map50": 0.6711,
+    "map50_95": 0.3994,
+    "precision": 0.8156,
+    "recall": 0.606
+  },
+  "videos": [
+    {
+      "video": "ANMR0006",
+      "cars": 0,
+      "people": 1,
+      "frames": 1800,
+      "wall_s": 238.2,
+      "fps": 7.6,
+      "ok": true,
+      "stderr": "",
+      "label": "ANMR0006"
+    },
+    {
+      "video": "12529314_1080_1920_60fps",
+      "cars": 6,
+      "people": 6,
+      "frames": 537,
+      "wall_s": 73.5,
+      "fps": 7.3,
+      "ok": true,
+      "stderr": "",
+      "label": "12529314_1080_1920_60fps"
+    },
+    {
+      "video": "12599250_3840_2160_30fps",
+      "cars": 34,
+      "people": 7,
+      "frames": 1800,
+      "wall_s": 335.6,
+      "fps": 5.4,
+      "ok": true,
+      "stderr": "",
+      "label": "12599250_3840_2160_30fps"
+    },
+    {
+      "video": "13092338_2160_3840_30fps",
+      "cars": 75,
+      "people": 16,
+      "frames": 1800,
+      "wall_s": 334.9,
+      "fps": 5.4,
+      "ok": true,
+      "stderr": "",
+      "label": "13092338_2160_3840_30fps"
+    },
+    {
+      "video": "14414218_1080_1920_60fps",
+      "cars": 21,
+      "people": 1,
+      "frames": 958,
+      "wall_s": 126.4,
+      "fps": 7.6,
+      "ok": true,
+      "stderr": "",
+      "label": "14414218_1080_1920_60fps"
+    },
+    {
+      "video": "14508550_2160_3840_60fps",
+      "cars": 77,
+      "people": 37,
+      "frames": 676,
+      "wall_s": 187.8,
+      "fps": 3.6,
+      "ok": true,
+      "stderr": "",
+      "label": "14508550_2160_3840_60fps"
+    },
+    {
+      "video": "14519666_2160_3840_60fps",
+      "cars": 1,
+      "people": 25,
+      "frames": 760,
+      "wall_s": 188.7,
+      "fps": 4.0,
+      "ok": true,
+      "stderr": "",
+      "label": "14519666_2160_3840_60fps"
+    },
+    {
+      "video": "14554257_2160_3840_60fps",
+      "cars": 0,
+      "people": 13,
+      "frames": 692,
+      "wall_s": 141.7,
+      "fps": 4.9,
+      "ok": true,
+      "stderr": "",
+      "label": "14554257_2160_3840_60fps"
+    },
+    {
+      "video": "14560754_3840_2160_30fps",
+      "cars": 0,
+      "people": 116,
+      "frames": 812,
+      "wall_s": 216.7,
+      "fps": 3.7,
+      "ok": true,
+      "stderr": "",
+      "label": "14560754_3840_2160_30fps"
+    },
+    {
+      "video": "14634622_1920_1080_24fps",
+      "cars": 0,
+      "people": 30,
+      "frames": 362,
+      "wall_s": 75.7,
+      "fps": 4.8,
+      "ok": true,
+      "stderr": "",
+      "label": "14634622_1920_1080_24fps"
+    },
+    {
+      "video": "9003388-hd_1920_1080_25fps",
+      "cars": 0,
+      "people": 11,
+      "frames": 635,
+      "wall_s": 108.3,
+      "fps": 5.9,
+      "ok": true,
+      "stderr": "",
+      "label": "9003388-hd_1920_1080_25fps"
+    },
+    {
+      "video": "benchmark_stmarc",
+      "cars": 27,
+      "people": 19,
+      "frames": 1800,
+      "wall_s": 222.6,
+      "fps": 8.1,
+      "ok": true,
+      "stderr": "",
+      "label": "stmarc"
+    }
+  ]
+}
