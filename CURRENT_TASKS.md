@@ -40,7 +40,7 @@ meaningful update so the other stays in sync.
 ## Active tasks
 
 ## T001 — Tracking inference batch (no ReID)
-**Status**: [→] Claude Code — started 2026-07-06
+**Status**: [x] Done — 2026-07-07
 **Priority**: high
 **Assigned to**: Claude Code
 
@@ -49,16 +49,14 @@ Run all 8 models (4 pretrained COCO + 4 fine-tuned) × all 13 Demo/ videos throu
 `experiments/yolo11_experiments/tracking_inference/<model>/`. Skip-existing logic is in
 place — safe to interrupt and resume with the same command.
 
-**Notes**: Running in user's terminal. Check progress with:
-```bash
-find experiments/yolo11_experiments/tracking_inference/ -name "*.mp4" | grep -v reid | sort
-```
-Expected ~7 hours total from start.
+**Result**: 104 videos written (8 models × 13 videos). All at ~480MB each for ANMR0006,
+smaller for the short benchmark clips. Location:
+`experiments/yolo11_experiments/tracking_inference/<pretrained|finetuned>_yolo11<s|m|l|x>/`
 
 ---
 
 ## T002 — Tracking inference batch (with ReID, ANMR0006 only)
-**Status**: [ ]
+**Status**: [x] Done — 2026-07-07
 **Priority**: medium
 **Assigned to**: Claude Code
 
@@ -68,10 +66,9 @@ Command:
 ```bash
 python tools/run_tracking_inference.py --batch --reid --device mps --resize 1280 --reid-device cpu
 ```
-Can run in parallel with T001 — different output folders, no conflict.
 
-**Notes**: ReID model already installed at
-`/opt/anaconda3/envs/objectmapping/lib/python3.9/site-packages/models/osnet_x0_25_msmt17.pt`.
+**Result**: 8 videos written, all ~480–494 MB. Location:
+`experiments/yolo11_experiments/tracking_inference/reid/<model>/ANMR0006.mp4`
 
 ---
 
@@ -132,4 +129,5 @@ Hermes should clarify scope with the user before Claude Code starts any implemen
 
 ## Completed tasks
 
-_(none yet)_
+- **T001** — Tracking inference batch (no ReID): 104 videos, all 8 models × 13 videos ✓
+- **T002** — Tracking inference batch (ReID): 8 videos, all 8 models on ANMR0006 ✓

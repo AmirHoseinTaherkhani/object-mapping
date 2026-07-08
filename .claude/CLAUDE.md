@@ -251,12 +251,11 @@ and ultralytics caches the hash under the gpfs01 path, causing mismatch errors.
 - Dataset: 32k train / 7k valid / 3.5k test images merged from 7 sources.
 - YOLO11 training: all 4 model sizes (s/m/l/x) fine-tuned on HPC, weights synced locally.
 - Experiment evaluation: mAP scores and benchmark video counts recorded in `summary.md`.
-- Tracking inference batch: `run_tracking_inference.py --batch` is running locally in terminal,
-  processing all 8 models × 13 videos (no-reid). Output: `tracking_inference/<model>/*.mp4`.
-  ETA ~7 hours from start. Skip-existing logic means it can be interrupted and resumed.
-- ReID comparison: `run_tracking_inference.py --batch --reid` ready to run on ANMR0006.mp4
-  for all 8 models. Not yet started — run after the no-reid batch completes (or in parallel,
-  they write to different folders).
+- Tracking inference (no-reid): **complete**. 104 videos (8 models × 13 videos) at
+  `experiments/yolo11_experiments/tracking_inference/<model>/*.mp4`.
+- Tracking inference (ReID): **complete**. 8 videos (all 8 models on ANMR0006.mp4) at
+  `experiments/yolo11_experiments/tracking_inference/reid/<model>/ANMR0006.mp4`.
+  ReID model: OSNet x0.25 MSMT17.
 
 ### Pending / next logical steps
 - **Counting tuning for YOLO11**: The ghost-zone and MIN_TRACK_AGE constants in
